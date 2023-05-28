@@ -1,0 +1,43 @@
+{
+    "LPA": "0xa97684ead0e402dc232d5a977953df7ecbab3cdb",
+    "node": "https://arb1.arbitrum.io/rpc",
+    "build": "build/FLAKars",
+    "private_key": "your-wallet-sk",
+    "routers": [
+        {
+            "dex": "uniswap v3",
+            "address": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+            "estim": "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6",
+            "avail": "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+        },
+        { "dex": "sushiswap", "address": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506" }
+    ],
+    "fl": [
+        { "symbol": "USDC" },
+        { "symbol": "wETH" },
+        { "symbol": "wBTC" },
+        { "symbol": "DAI" },
+        { "symbol": "LINK" },
+        { "symbol": "USDT" },
+        { "symbol": "DAI aave" },
+        { "symbol": "USDC aave" },
+        { "symbol": "wBTC aave" },
+        { "symbol": "wETH aave" },
+        { "symbol": "USDT aave" },
+        { "symbol": "LINK aave" }
+    ],
+    "tokens": [
+        { "symbol": "USDC", "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8" },
+        { "symbol": "wETH", "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1" },
+        { "symbol": "wBTC", "address": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f" },
+        { "symbol": "DAI", "address": "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1" },
+        { "symbol": "LINK", "address": "0xf97f4df75117a78c1a5a0dbb814af92458539fb4" },
+        { "symbol": "USDT", "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9" },
+        { "symbol": "DAI aave", "address": "0x82E64f49Ed5EC1bC6e43DAD4FC8Af9bb3A2312EE" },
+        { "symbol": "USDC aave", "address": "0x625E7708f30cA75bfd92586e17077590C60eb4cD" },
+        { "symbol": "USDT aave", "address": "0x6ab707aca953edaefbc4fd23ba73294241490620" },
+        { "symbol": "LINK aave", "address": "0x191c10Aa4AF7C30e871E70C95dB0E4eb77237530" },
+        { "symbol": "wBTC aave", "address": "0x078f358208685046a11C85e8ad32895DED33A249" },
+        { "symbol": "wETH aave", "address": "0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8" }
+    ]
+}

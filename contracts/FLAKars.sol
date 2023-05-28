@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.10;
 
+import "./uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "./uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
+import "./uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+
 import "./uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "./uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "./uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
@@ -15,12 +19,15 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
     using StringUtil for string;
     using StringUtil for uint256;
 
-    uint256 constant ttl = 10 days;
+    uint256 private constant ttl = 10 days;
+    uint24 private constant feev3 = 3000; // 0.3 %
     address private immutable owner;
     struct ArbitrageInfo {
         address token2;
+        address token3;
         address router1;
         address router2;
+        address router3;
     }
 
     modifier onlyOwner() {
@@ -33,64 +40,94 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
     }
 
     function swap(address router, address tokenIn, address tokenOut, uint256 amount) internal {
+        if (tokenIn == tokenOut) {
+            return;
+        }
+
         IERC20(tokenIn).approve(router, amount);
+        if (isV2(router)) {
+            address[] memory path = new address[](2);
+            path[0] = tokenIn;
+            path[1] = tokenOut;
 
-        address[] memory path = new address[](2);
-        path[0] = tokenIn;
-        path[1] = tokenOut;
+            IUniswapV2Router02(router).swapExactTokensForTokens(amount, 1, path, address(this), block.timestamp + ttl);
+        } else {
+            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: feev3,
+                recipient: address(this),
+                deadline: block.timestamp + ttl,
+                amountIn: amount,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            });
 
-        IUniswapV2Router02(router).swapExactTokensForTokens(amount, 1, path, address(this), block.timestamp + ttl);
+            ISwapRouter(router).exactInputSingle(params);
+        }
     }
 
-    function dexArbitrage(address router1, address router2, address token1, address token2, uint256 amount) external onlyOwner {
+    function dexArbitrage(address router1, address router2, address router3, address token1, address token2, address token3, uint256 amount) external onlyOwner returns(uint256) {
+        return _dexArbitrage(router1, router2, router3, token1, token2, token3, amount);
+    }
+
+    function _dexArbitrage(address router1, address router2, address router3, address token1, address token2, address token3, uint256 amount) internal returns(uint256) {
         uint256 startBalance = IERC20(token1).balanceOf(address(this));
         uint256 initalToken2Balance = IERC20(token2).balanceOf(address(this));
+        uint256 initalToken3Balance = IERC20(token3).balanceOf(address(this));
 
         swap(router1, token1, token2, amount);
-        swap(router2, token2, token1, IERC20(token2).balanceOf(address(this))-initalToken2Balance);
+        swap(router2, token2, token3, IERC20(token2).balanceOf(address(this))-initalToken2Balance);
+        swap(router3, token3, token1, IERC20(token3).balanceOf(address(this))-initalToken3Balance);
 
         uint256 newBalance = IERC20(token1).balanceOf(address(this));
         string memory message = "The arbitrage wasnt profitable ";
-        message = message.concat(startBalance.toStr()).concat("/").concat(newBalance.toStr());
+        message = message
+            .concat(startBalance.toStr())
+            .concat("/")
+            .concat(newBalance.toStr())
+            .concat(" (")
+            .concat(((startBalance*100)/newBalance).toStr())
+            .concat("%)");
 
         require(newBalance > startBalance, message);
+
+        return newBalance;
     }
 
-    function _dexArbitrage(address router1, address router2, address token1, address token2, uint256 amount) internal {
-        uint256 startBalance = IERC20(token1).balanceOf(address(this));
-        uint256 initalToken2Balance = IERC20(token2).balanceOf(address(this));
+    function convert(address router, address tokenIn, address tokenOut, uint256 amount) external returns (uint256) {
+        return _convert(router, tokenIn, tokenOut, amount);
+	}
 
-        swap(router1, token1, token2, amount);
-        swap(router2, token2, token1, IERC20(token2).balanceOf(address(this))-initalToken2Balance);
+    function _convert(address router, address tokenIn, address tokenOut, uint256 amount) internal returns (uint256) {
+        if (tokenIn == tokenOut) {
+            return amount;
+        }
 
-        uint256 newBalance = IERC20(token1).balanceOf(address(this));
-        string memory message = "The arbitrage wasnt profitable ";
-        message = message.concat(startBalance.toStr()).concat("/").concat(newBalance.toStr());
+        if (isV2(router)) {
+            address[] memory path;
+            path = new address[](2);
+            path[0] = tokenIn;
+            path[1] = tokenOut;
+            uint256[] memory amountOutMins = IUniswapV2Router02(router).getAmountsOut(amount, path);
+            return amountOutMins[path.length - 1];
+        } else {
+            IQuoter qouter = IQuoter(router);
+            return qouter.quoteExactInputSingle(tokenIn, tokenOut, feev3, amount, 0);
+        }
+	}
 
-        require(newBalance > startBalance, message);
+    function available(address router, address token1, address token2) external view onlyOwner returns (bool) {
+        if (isV2(router)) {
+		    address pair = IUniswapV2Factory(IUniswapV2Router02(router).factory()).getPair(token1, token2);
+            return pair != address(0);
+        } else {
+            address pool = IUniswapV3Factory(router).getPool(token1, token2, feev3);
+            return pool != address(0);
+        }
     }
 
-    function estimateDexArbitrage(address router1, address router2, address token1, address token2, uint256 amount) external onlyOwner view returns(uint256) {
-        address pair1 = IUniswapV2Factory(IUniswapV2Router02(router1).factory()).getPair(token1, token2);
-        require(pair1 != address(0), "Pair does not exist in router1");
-        address pair2 = IUniswapV2Factory(IUniswapV2Router02(router2).factory()).getPair(token2, token1);
-        require(pair2 != address(0), "Pair does not exist in router2");
-
-        address[] memory path1 = new address[](2);
-        path1[0] = token1;
-        path1[1] = token2;
-
-        address[] memory path2 = new address[](2);
-        path2[0] = token2;
-        path2[1] = token1;
-
-        uint256[] memory amountsOut1 = IUniswapV2Router02(router1).getAmountsOut(amount, path1);
-        uint256[] memory amountsOut2 = IUniswapV2Router02(router2).getAmountsOut(amountsOut1[1], path2);
-
-        return amountsOut2[1];
-    }
-
-    function balanceOf(address token) external onlyOwner view returns(uint256) {
+    function balanceOf(address token) external view returns(uint256) {
         return IERC20(token).balanceOf(address(this));
     }
 
@@ -99,11 +136,13 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
 		token.transfer(owner, amount);
 	}
 
-    function flArbitrage(address router1, address router2, address token1, address token2, uint256 amount) external onlyOwner {
+    function flArbitrage(address router1, address router2, address router3, address token1, address token2, address token3, uint256 amount) external onlyOwner {
         ArbitrageInfo memory info = ArbitrageInfo({
             token2: token2,
+            token3: token3,
             router1: router1,
-            router2: router2
+            router2: router2,
+            router3: router3
         });
 
         POOL.flashLoanSimple(
@@ -124,10 +163,15 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
     ) external override returns (bool) {
         ArbitrageInfo memory info = abi.decode(params, (ArbitrageInfo));
 
-        _dexArbitrage(info.router1, info.router2, token, info.token2, amount);
+        _dexArbitrage(info.router1, info.router2, info.router3, token, info.token2, info.token3, amount);
 
         IERC20(token).approve(address(POOL), amount + fee);
 
         return true;
+    }
+
+    function isV2(address router) internal view returns (bool) {
+        (bool success, ) = router.staticcall(abi.encodeWithSignature("WETH()"));
+        return success;
     }
 }

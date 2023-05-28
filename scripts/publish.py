@@ -1,3 +1,4 @@
+from consts import GAS
 from web3 import Web3
 import json
 import sys
@@ -24,10 +25,12 @@ def deploy(node: str, abi, bytecode, private_key, *args):
 
     constructor = contract.constructor(*args)
     
-    gas_price = web3.eth.gas_price
+    gas_price = int(web3.eth.gas_price*GAS)
     gas_limit = constructor.estimate_gas()
 
-    print(f"gas price - {gas_price}, gas limit - {gas_limit}")
+    eth = gas_price*gas_limit/1e18
+    print(f"publish will consume {eth} ETH, gas price - {gas_price}, gas limit - {gas_limit}")
+
     tx = constructor.build_transaction({
         "from": account.address,
         "nonce": web3.eth.get_transaction_count(account.address),

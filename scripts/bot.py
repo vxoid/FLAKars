@@ -1,11 +1,12 @@
-from typing import List
-from web3 import Web3
+from contract.functions import *
+from arbitrage import *
+from typing import *
+from consts import *
 import json
 import sys
 
-MIN_PROFIT = 1.009
-BREAK_PROFIT = 2.0
 COLOR_YELLOW = "\033[93m"
+COLOR_RED = "\033[91m"
 COLOR_RESET = "\033[0m"
 
 def usage(args):
@@ -19,121 +20,128 @@ if len(sys.argv) < 3:
     usage(sys.argv)
     sys.exit(-1)
 
-def balanceOf(contract, pk, token):
-    function = contract.functions.balanceOf(
-        Web3.to_checksum_address(token)
-    )
-
-    return function.call({ "from": pk })
-
-def withdraw(web3: Web3, contract, account, token, amount):
-    function = contract.functions.withdraw(
-        Web3.to_checksum_address(token),
-        amount
-    )
-
-    tx = function.build_transaction({
-        "from": account.address,
-        "nonce": web3.eth.get_transaction_count(account.address),
-        "gas": function.estimate_gas({ "from": account.address }),
-        "gasPrice": web3.eth.gas_price
-    })
-    signed_tx = account.sign_transaction(tx)
-    tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-
-    return web3.eth.wait_for_transaction_receipt(tx_hash)
-
-def flArbitrage(web3: Web3, contract, account, router1, router2, token1, token2, amount):
-    function = contract.functions.flArbitrage(
-        Web3.to_checksum_address(router1),
-        Web3.to_checksum_address(router2),
-        Web3.to_checksum_address(token1),
-        Web3.to_checksum_address(token2),
-        amount
-    )
-
-    tx = function.build_transaction({
-        "from": account.address,
-        "nonce": web3.eth.get_transaction_count(account.address),
-        "gas": function.estimate_gas({ "from": account.address }),
-        "gasPrice": web3.eth.gas_price
-    })
-    signed_tx = account.sign_transaction(tx)
-    tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-
-    return web3.eth.wait_for_transaction_receipt(tx_hash)
-
-def dexArbitrage(web3: Web3, contract, account, router1, router2, token1, token2, amount):
-    function = contract.functions.dexArbitrage(
-        Web3.to_checksum_address(router1),
-        Web3.to_checksum_address(router2),
-        Web3.to_checksum_address(token1),
-        Web3.to_checksum_address(token2),
-        amount
-    )
-
-    tx = function.build_transaction({
-        "from": account.address,
-        "nonce": web3.eth.get_transaction_count(account.address),
-        "gas": function.estimate_gas({ "from": account.address }),
-        "gasPrice": web3.eth.gas_price
-    })
-    signed_tx = account.sign_transaction(tx)
-    tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-
-    return web3.eth.wait_for_transaction_receipt(tx_hash)
-
-def estimateDexArbitrage(contract, pk, router1, router2, token1, token2, amount):
-    function = contract.functions.estimateDexArbitrage(
-        Web3.to_checksum_address(router1),
-        Web3.to_checksum_address(router2),
-        Web3.to_checksum_address(token1),
-        Web3.to_checksum_address(token2),
-        amount
-    )
-
-    return function.call({ "from": pk })
-
-class Arbitrage:
-    def __init__(self, router1, router2, token1, token2, profit):
-        self.router1 = router1
-        self.router2 = router2
-        self.token1 = token1
-        self.token2 = token2
-        self.profit = profit
-
-def get_most_profitable(contract, pk, tokens, routers, break_profit, min_profit) -> List[Arbitrage]:
+def get_most_profitable(web3: Web3, contract, account, fl, tokens, routers) -> List[Tuple[Arbitrage, Pair]]:
+    eth_token = get_addr_by_sym(WETH)
     arbitrages = []
-    for token1, amount in tokens:
-        for token2, _ in tokens:
-            if token1 == token2: # cant estimate arbitarge on 2 same tokens
-                continue
-            for router1 in routers:
-                for router2 in routers:
-                    if router1 == router2: # no profit due to fees
-                        continue
-                    estimated_amount = 0
-                    try:
-                        estimated_amount = estimateDexArbitrage(contract, pk, router1, router2, token1, token2, amount)
-                    except Exception as e:
+    for fl_token in fl:
+        for token2 in tokens:
+            for token3 in tokens:
+                if fl_token == token2 and token2 == token3:
+                    continue
+                
+                for router1, estim1, avail1 in routers:
+                    pair1 = Pair(contract, account.address, router1, fl_token, token2, estim=estim1, avail=avail1)
+                    eth_pair = Pair(contract, account.address, router1, eth_token, fl_token, estim=estim1, avail=avail1)
+                    if fl_token != eth_token and not eth_pair.available():
                         print(
                             COLOR_YELLOW +
-                            f"{get_sym_by_addr(token1)}({get_dex_by_addr(router1)}) <-> {get_sym_by_addr(token2)}({get_dex_by_addr(router2)}) failed with {e}"
+                            f"{WETH} -> "
+                            + f"{get_sym_by_addr(fl_token)} does not exists on {get_dex_by_addr(router1)}"
                             + COLOR_RESET
                         )
                         continue
 
-                    if float(estimated_amount) >= amount*break_profit:
-                        arbitrages.append(Arbitrage(router1, router2, token1, token2, estimated_amount))
-                        return arbitrages
+                    if fl_token != token2 and not pair1.available():
+                        print(
+                            COLOR_YELLOW +
+                            f"{get_sym_by_addr(fl_token)} -> "
+                            + f"{get_sym_by_addr(token2)} does not exists on {get_dex_by_addr(router1)}"
+                            + COLOR_RESET
+                        )
+                        continue
 
-                    if float(estimated_amount) > amount*min_profit:
-                        arbitrages.append(Arbitrage(router1, router2, token1, token2, estimated_amount))
-                    
+                    for router2, estim2, avail2 in routers:
+                        pair2 = Pair(contract, account.address, router2, token2, token3, estim=estim2, avail=avail2)
+
+                        if token2 != token3 and not pair2.available():
+                            print(
+                                COLOR_YELLOW +
+                                f"{get_sym_by_addr(token2)} -> "
+                                + f"{get_sym_by_addr(token3)} does not exists on {get_dex_by_addr(router2)}"
+                                + COLOR_RESET
+                            )
+                            continue
+
+                        for router3, estim3, avail3 in routers:
+                            pair3 = Pair(contract, account.address, router3, token3, fl_token, estim=estim3, avail=avail3)
+                            
+                            if token3 != fl_token and not pair3.available():
+                                print(
+                                    COLOR_YELLOW +
+                                    f"{get_sym_by_addr(token3)} -> "
+                                    + f"{get_sym_by_addr(fl_token)} does not exists on {get_dex_by_addr(router3)}"
+                                    + COLOR_RESET
+                                )
+                                continue
+
+                            arbitrage = Arbitrage(
+                                web3,
+                                contract,
+                                account,
+                                pair1,
+                                pair2,
+                                pair3
+                            )
+
+                            estimated_gas = 0
+                            try:
+                                eth = int(ESTIMATE_GAS_ETH*1e18)
+                                token1_amount = eth_pair.convert(eth) if fl_token != eth_token else eth
+                                estimated_gas = arbitrage.estimateGasFlashArbitrage(token1_amount)
+                            except Exception as e:
+                                print(
+                                    COLOR_RED +
+                                    f"{arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} flarbitrage gas estimation failed with {e}"
+                                    + COLOR_RESET
+                                )
+                                continue
+
+                            estimated_amount = 0
+                            token1_gas = 0
+                            amount = 0
+                            try:
+                                eth = int((web3.eth.gas_price*GAS)*estimated_gas)
+                                print(f"estimated gas fees - {eth/1e18}")
+
+                                token1_gas = eth_pair.convert(eth) if fl_token != eth_token else eth
+                                amount = int(token1_gas*FLA_GAS)
+
+                                estimated_amount = arbitrage.estimate(amount)
+
+                                income = estimated_amount - amount
+
+                                if income <= token1_gas:
+                                    print(
+                                        COLOR_YELLOW +
+                                        f"income {income} - {amount+token1_gas}/{estimated_amount}({estimated_amount/(amount+token1_gas)}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} won\'t be profitable"
+                                        + COLOR_RESET
+                                    )
+                                    continue
+                            except Exception as e:
+                                print(
+                                    COLOR_RED +
+                                    f"{arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} estimation failed with {e}"
+                                    + COLOR_RESET
+                                )
+                                continue
+
+                            print(f"found {amount}/{estimated_amount}({estimated_amount/amount}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}")
+
+                            try:
+                                arbitrage.flashArbitrage(amount, gas_limit=estimated_gas)
+                            except Exception as e:
+                                print(COLOR_RED + f"arbitrage failed with {e}" + COLOR_RESET)
+                            else:
+                                print(f"✅💹 Succesfully arbitraged {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}")
+
+                                print("-------------------------------------------------------")
+                            arbitrages.append((arbitrage, eth_pair))
+                                       
     return arbitrages
 
 with open(sys.argv[1], "r") as file:
     config = json.loads(file.read())
+    fl = config["fl"]
     node = config["node"]
     build = config["build"]
     tokens = config["tokens"]
@@ -145,7 +153,6 @@ get_dex_by_addr = lambda addr: dex_by_addr[addr]
 
 sym_by_addr = { token["address"]: token["symbol"] for token in tokens }
 addr_by_sym = { token["symbol"]: token["address"] for token in tokens }
-fl_by_addr = { token["address"]: token["fl"] for token in tokens }
 get_sym_by_addr = lambda addr: sym_by_addr[addr]
 get_addr_by_sym = lambda sym: addr_by_sym[sym]
 
@@ -154,41 +161,81 @@ with open(f"{build}.abi", "r") as file:
 
 web3 = Web3(Web3.HTTPProvider(node))
 
-contract = web3.eth.contract(address=sys.argv[2], abi=abi)
+contract = web3.eth.contract(address=Web3.to_checksum_address(sys.argv[2]), abi=abi)
 account = web3.eth.account.from_key(private_key)
+eth_token = get_addr_by_sym(WETH)
 
 while True:
-    balance_by_addr = { token["address"]: balanceOf(contract, account.address, token["address"]) for token in tokens }
-    arb_by_addr = {}
-    priced_tokens = []
-    for token in tokens:
-        balance = balance_by_addr[token["address"]]
-        if balance == 0 or token["fl"]:
-            balance = token["arbitrage"]
-
-        priced_tokens.append((token["address"], balance))
-        arb_by_addr.update({ token["address"]: balance })
-
     print("Fetching prices...")
     arbitrages = get_most_profitable(
+        web3,
         contract,
-        account.address,
-        priced_tokens,
-        [router["address"] for router in routers],
-        BREAK_PROFIT,
-        MIN_PROFIT
+        account,
+        [get_addr_by_sym(fl_token["symbol"]) for fl_token in fl],
+        [token["address"] for token in tokens],
+        [(router["address"], router["estim"] if "estim" in router else None, router["avail"] if "avail" in router else None) for router in routers]
     )
 
-    for arbitrage in arbitrages:
-        print(f"{get_sym_by_addr(arbitrage.token1)}({get_dex_by_addr(arbitrage.router1)}) <-> {get_sym_by_addr(arbitrage.token2)}({get_dex_by_addr(arbitrage.router2)}) -> {arbitrage.profit}")
-        try:
-            if balance_by_addr[arbitrage.token1] == 0 or fl_by_addr[arbitrage.token1]:
-                flArbitrage(web3, contract, account, arbitrage.router1, arbitrage.router2, arbitrage.token1, arbitrage.token2, arb_by_addr[arbitrage.token1])
-            else:
-                dexArbitrage(web3, contract, account, arbitrage.router1, arbitrage.router2, arbitrage.token1, arbitrage.token2, balance_by_addr[arbitrage.token1])
-        except Exception as e:
-            print(COLOR_YELLOW + f"arbitrage failed with {e}" + COLOR_RESET)
-            continue
+    # arbitraging
+    while len(arbitrages) != 0:
+        i = 0
+        while i<len(arbitrages):
+            arbitrage = arbitrages[i][0]
+            eth_pair = arbitrages[i][1]
 
-        print(f"✅💹 Succesfully arbitraged, current balance is {balanceOf(contract, account.address, arbitrage.token1)} {get_sym_by_addr(arbitrage.token1)}")
-        print("-------------------------------------------------------")
+            estimated_gas = 0
+            token1_gas = 0
+            amount = 0
+            try:
+                eth = int(ESTIMATE_GAS_ETH*1e18)
+                token1_amount = int(eth_pair.convert(eth) if arbitrage.pair1.token1 != eth_pair.token1 else eth)
+                estimated_gas = arbitrage.estimateGasFlashArbitrage(token1_amount)
+
+                eth = int((web3.eth.gas_price*GAS)*estimated_gas)
+                token1_gas = eth_pair.convert(eth) if arbitrage.pair1.token1 != eth_pair.token1 else eth
+                amount = int(token1_gas*FLA_GAS)
+
+                arbitrage.estimateGasFlashArbitrage(amount)
+            except Exception as e:
+                print(
+                    COLOR_RED +
+                    f"removing {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} due to flarbitrage gas estimation failed with {e}"
+                    + COLOR_RESET
+                )
+                continue
+
+            amount = 0
+            estimated_amount = 0
+            try:
+                estimated_amount = arbitrage.estimate(amount)
+
+                income = estimated_amount - amount
+                if income <= token1_gas:
+                    print(COLOR_RED + f"removing {amount}/{estimated_amount}({estimated_amount/amount}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}" + COLOR_RESET)
+                    arbitrages.pop(i)
+                    continue
+            except Exception as e:
+                print(
+                    COLOR_RED +
+                    f"removing {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} estimation failed with {e}"
+                    + COLOR_RESET
+                )
+                arbitrages.pop(i)
+                continue
+
+            print(
+                f"found {amount}/{estimated_amount}({estimated_amount/amount}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}"
+            )
+
+            try:
+                arbitrage.flashArbitrage(amount, gas_limit=estimated_gas)
+            except Exception as e:
+                print(COLOR_RED + f"arbitrage failed with {e}" + COLOR_RESET)
+            else:
+                print(
+                    f"✅💹 Succesfully arbitraged {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}"
+                )
+
+                print("-------------------------------------------------------")
+
+            i += 1
