@@ -1,4 +1,4 @@
-# FLAKars v0.0.3 | etherium network arbitrage bot
+# FLAKars v0.0.4 | etherium network arbitrage bot
 ## Changelog
 - Added switch between dual dex trade and triple dex arbitrage
 - Added telegram notificator on successful arbitrage if user subscribes with /start query while bot was running
@@ -16,6 +16,8 @@
     "build": "build/FLAKars",
     "private_key": "<your-wallet-sk>",
     "dual": false,
+    "weth": "wETH",
+    "eth-dex": "sushiswap",
     "routers": [
         {
             "dex": "uniswap v3",

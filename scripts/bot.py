@@ -20,10 +20,19 @@ if len(sys.argv) < 3:
     usage(sys.argv)
     sys.exit(-1)
 
-def get_most_profitable_trib(fl, tokens, routers, on_success) -> List[Tuple[TribArbitrage, Pair]]:
-    eth_token = get_addr_by_sym(WETH)
+def get_most_profitable_trib(fl, tokens, routers, on_success, eth_token, eth_router) -> List[Tuple[TribArbitrage, Pair]]:
+    eth_router, eth_estim, eth_avail = eth_router
     arbitrages = []
     for fl_token in fl:
+        eth_pair = Pair(contract, account.address, eth_router, eth_token, fl_token, estim=eth_estim, avail=eth_avail)
+        if fl_token != eth_token and not eth_pair.available():
+            print(
+                COLOR_YELLOW +
+                f"{weth} -> "
+                + f"{get_sym_by_addr(fl_token)} does not exists on {get_dex_by_addr(router1)}"
+                + COLOR_RESET
+            )
+            continue
         for token2 in tokens:
             for token3 in tokens:
                 if fl_token == token2 and token2 == token3:
@@ -31,15 +40,6 @@ def get_most_profitable_trib(fl, tokens, routers, on_success) -> List[Tuple[Trib
                 
                 for router1, estim1, avail1 in routers:
                     pair1 = Pair(contract, account.address, router1, fl_token, token2, estim=estim1, avail=avail1)
-                    eth_pair = Pair(contract, account.address, router1, eth_token, fl_token, estim=estim1, avail=avail1)
-                    if fl_token != eth_token and not eth_pair.available():
-                        print(
-                            COLOR_YELLOW +
-                            f"{WETH} -> "
-                            + f"{get_sym_by_addr(fl_token)} does not exists on {get_dex_by_addr(router1)}"
-                            + COLOR_RESET
-                        )
-                        continue
 
                     if fl_token != token2 and not pair1.available():
                         print(
@@ -103,10 +103,19 @@ def get_most_profitable_trib(fl, tokens, routers, on_success) -> List[Tuple[Trib
                                        
     return arbitrages
 
-def get_most_profitable_dual(fl, tokens, routers, on_success) -> List[Tuple[DualArbitrage, Pair]]:
-    eth_token = get_addr_by_sym(WETH)
+def get_most_profitable_dual(fl, tokens, routers, on_success, eth_token, eth_router) -> List[Tuple[DualArbitrage, Pair]]:
+    eth_router, eth_estim, eth_avail = eth_router
     arbitrages = []
     for fl_token in fl:
+        eth_pair = Pair(contract, account.address, eth_router, eth_token, fl_token, estim=eth_estim, avail=eth_avail)
+        if fl_token != eth_token and not eth_pair.available():
+            print(
+                COLOR_YELLOW +
+                f"{weth} -> "
+                + f"{get_sym_by_addr(fl_token)} does not exists on {get_dex_by_addr(router1)}"
+                + COLOR_RESET
+            )
+            continue
         for token2 in tokens:
             if fl_token == token2:
                 continue
@@ -117,7 +126,7 @@ def get_most_profitable_dual(fl, tokens, routers, on_success) -> List[Tuple[Dual
                 if fl_token != eth_token and not eth_pair.available():
                     print(
                         COLOR_YELLOW +
-                        f"{WETH} -> "
+                        f"{get_sym_by_addr(eth_token)} -> "
                         + f"{get_sym_by_addr(fl_token)} does not exists on {get_dex_by_addr(router1)}"
                         + COLOR_RESET
                     )
@@ -229,6 +238,8 @@ with open(sys.argv[1], "r") as file:
     config = json.loads(file.read())
     dual = config["dual"]
     fl = config["fl"]
+    weth = config["weth"]
+    eth_dex = config["eth-dex"]
     node = config["node"]
     build = config["build"]
     tokens = config["tokens"]
@@ -236,6 +247,8 @@ with open(sys.argv[1], "r") as file:
     private_key = config["private_key"]
 
 dex_by_addr = { router["address"]: router["dex"] for router in routers }
+addr_by_dex = { router["dex"]: router["address"] for router in routers }
+get_addr_by_dex = lambda dex: addr_by_dex[dex]
 get_dex_by_addr = lambda addr: dex_by_addr[addr]
 
 sym_by_addr = { token["address"]: token["symbol"] for token in tokens }
@@ -250,24 +263,30 @@ web3 = Web3(Web3.HTTPProvider(node))
 
 contract = web3.eth.contract(address=Web3.to_checksum_address(sys.argv[2]), abi=abi)
 account = web3.eth.account.from_key(private_key)
-eth_token = get_addr_by_sym(WETH)
+eth_token = get_addr_by_sym(weth)
+eth_router = get_addr_by_dex(eth_dex)
 
 while True:
     print("Fetching prices...")
     arb_routers = [(router["address"], router["estim"] if "estim" in router else None, router["avail"] if "avail" in router else None) for router in routers]
+    eth_router, eth_estim, eth_avail = [(address, estim, avail) for address, estim, avail in arb_routers if address == eth_router][0]
     if dual:
         arbitrages = get_most_profitable_dual(
             [get_addr_by_sym(fl_token["symbol"]) for fl_token in fl],
             [token["address"] for token in tokens],
             arb_routers,
-            debug_arbitrage
+            debug_arbitrage,
+            eth_token,
+            (eth_router, eth_estim, eth_avail)
         )
     else:
         arbitrages = get_most_profitable_trib(
             [get_addr_by_sym(fl_token["symbol"]) for fl_token in fl],
             [token["address"] for token in tokens],
             arb_routers,
-            debug_arbitrage
+            debug_arbitrage,
+            eth_token,
+            (eth_router, eth_estim, eth_avail)
         )
 
     # arbitraging

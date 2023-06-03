@@ -4,6 +4,8 @@
     "build": "build/FLAKars",
     "private_key": "<your-wallet-sk>",
     "dual": false,
+    "weth": "wETH",
+    "eth-dex": "sushiswap",
     "routers": [
         {
             "dex": "uniswap v3",

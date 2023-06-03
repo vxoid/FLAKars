@@ -15,7 +15,7 @@ def estimateGasAndAmount(web3: Web3, arbitrage: DualArbitrage | TribArbitrage, e
     token1_gas = 0
     amount = 0
     try:
-        eth = int((web3.eth.gas_price*GAS)*estimated_gas)
+        eth = int(ESTIMATE_GAS_ETH*1e18)
 
         token1_gas = eth_pair.convert(eth) if arbitrage.pair1.token1 != eth_pair.token1 else eth
         amount = int(token1_gas*FLA_GAS)
