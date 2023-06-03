@@ -1,13 +1,13 @@
 from contract.functions import *
 from arbitrage import *
+from curtely import *
+from colors import *
 from typing import *
 from consts import *
+from arbmath import *
+import threading
 import json
 import sys
-
-COLOR_YELLOW = "\033[93m"
-COLOR_RED = "\033[91m"
-COLOR_RESET = "\033[0m"
 
 def usage(args):
     space = " "*len(args[0])
@@ -20,7 +20,7 @@ if len(sys.argv) < 3:
     usage(sys.argv)
     sys.exit(-1)
 
-def get_most_profitable(web3: Web3, contract, account, fl, tokens, routers) -> List[Tuple[Arbitrage, Pair]]:
+def get_most_profitable_trib(fl, tokens, routers, on_success) -> List[Tuple[TribArbitrage, Pair]]:
     eth_token = get_addr_by_sym(WETH)
     arbitrages = []
     for fl_token in fl:
@@ -74,7 +74,7 @@ def get_most_profitable(web3: Web3, contract, account, fl, tokens, routers) -> L
                                 )
                                 continue
 
-                            arbitrage = Arbitrage(
+                            arbitrage = TribArbitrage(
                                 web3,
                                 contract,
                                 account,
@@ -82,45 +82,11 @@ def get_most_profitable(web3: Web3, contract, account, fl, tokens, routers) -> L
                                 pair2,
                                 pair3
                             )
-
-                            estimated_gas = 0
-                            try:
-                                eth = int(ESTIMATE_GAS_ETH*1e18)
-                                token1_amount = eth_pair.convert(eth) if fl_token != eth_token else eth
-                                estimated_gas = arbitrage.estimateGasFlashArbitrage(token1_amount)
-                            except Exception as e:
+                            amount, estimated_amount, estimated_gas, succed, error = estimateGasAndAmount(web3, arbitrage, eth_pair)
+                            if not succed:
                                 print(
                                     COLOR_RED +
-                                    f"{arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} flarbitrage gas estimation failed with {e}"
-                                    + COLOR_RESET
-                                )
-                                continue
-
-                            estimated_amount = 0
-                            token1_gas = 0
-                            amount = 0
-                            try:
-                                eth = int((web3.eth.gas_price*GAS)*estimated_gas)
-                                print(f"estimated gas fees - {eth/1e18}")
-
-                                token1_gas = eth_pair.convert(eth) if fl_token != eth_token else eth
-                                amount = int(token1_gas*FLA_GAS)
-
-                                estimated_amount = arbitrage.estimate(amount)
-
-                                income = estimated_amount - amount
-
-                                if income <= token1_gas:
-                                    print(
-                                        COLOR_YELLOW +
-                                        f"income {income} - {amount+token1_gas}/{estimated_amount}({estimated_amount/(amount+token1_gas)}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} won\'t be profitable"
-                                        + COLOR_RESET
-                                    )
-                                    continue
-                            except Exception as e:
-                                print(
-                                    COLOR_RED +
-                                    f"{arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} estimation failed with {e}"
+                                    f"{arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} failed with {error}"
                                     + COLOR_RESET
                                 )
                                 continue
@@ -132,15 +98,136 @@ def get_most_profitable(web3: Web3, contract, account, fl, tokens, routers) -> L
                             except Exception as e:
                                 print(COLOR_RED + f"arbitrage failed with {e}" + COLOR_RESET)
                             else:
-                                print(f"✅💹 Succesfully arbitraged {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}")
-
-                                print("-------------------------------------------------------")
+                                on_success(arbitrage)
                             arbitrages.append((arbitrage, eth_pair))
                                        
     return arbitrages
 
+def get_most_profitable_dual(fl, tokens, routers, on_success) -> List[Tuple[DualArbitrage, Pair]]:
+    eth_token = get_addr_by_sym(WETH)
+    arbitrages = []
+    for fl_token in fl:
+        for token2 in tokens:
+            if fl_token == token2:
+                continue
+
+            for router1, estim1, avail1 in routers:
+                pair1 = Pair(contract, account.address, router1, fl_token, token2, estim=estim1, avail=avail1)
+                eth_pair = Pair(contract, account.address, router1, eth_token, fl_token, estim=estim1, avail=avail1)
+                if fl_token != eth_token and not eth_pair.available():
+                    print(
+                        COLOR_YELLOW +
+                        f"{WETH} -> "
+                        + f"{get_sym_by_addr(fl_token)} does not exists on {get_dex_by_addr(router1)}"
+                        + COLOR_RESET
+                    )
+                    continue
+
+                if not pair1.available():
+                    print(
+                        COLOR_YELLOW +
+                        f"{get_sym_by_addr(fl_token)} -> "
+                        + f"{get_sym_by_addr(token2)} does not exists on {get_dex_by_addr(router1)}"
+                        + COLOR_RESET
+                    )
+                    continue
+
+                for router2, estim2, avail2 in routers:
+                    pair2 = Pair(contract, account.address, router2, token2, fl_token, estim=estim2, avail=avail2)
+
+                    if not pair2.available():
+                        print(
+                            COLOR_YELLOW +
+                            f"{get_sym_by_addr(token2)} -> "
+                            + f"{get_sym_by_addr(fl_token)} does not exists on {get_dex_by_addr(router2)}"
+                            + COLOR_RESET
+                        )
+                        continue
+
+                    arbitrage = DualArbitrage(
+                        web3,
+                        contract,
+                        account,
+                        pair1,
+                        pair2
+                    )
+
+                    amount, estimated_amount, estimated_gas, succed, error = estimateGasAndAmount(web3, arbitrage, eth_pair)
+                    if not succed:
+                        print(
+                            COLOR_RED +
+                            f"{arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} failed with {error}"
+                            + COLOR_RESET
+                        )
+                        continue
+
+                    print(f"found {amount}/{estimated_amount}({estimated_amount/amount}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}")
+
+                    try:
+                        arbitrage.flashArbitrage(amount, gas_limit=estimated_gas)
+                    except Exception as e:
+                        print(COLOR_RED + f"arbitrage failed with {e}" + COLOR_RESET)
+                    else:
+                        on_success(arbitrage)
+                    arbitrages.append((arbitrage, eth_pair))
+                                    
+    return arbitrages
+
+def arbitrage_while_profitable(arbitrages: List[Tuple[DualArbitrage | TribArbitrage, Pair]], on_success):
+    while len(arbitrages) != 0:
+        i = 0
+        while i<len(arbitrages):
+            arbitrage = arbitrages[i][0]
+            eth_pair = arbitrages[i][1]
+
+            amount, estimated_amount, estimated_gas, succed, error = estimateGasAndAmount(web3, arbitrage, eth_pair)
+            if not succed:
+                print(
+                    COLOR_RED +
+                    f"{arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} failed with {error}"
+                    + COLOR_RESET
+                )
+                arbitrages.pop(i)
+                continue
+
+            print(
+                f"found {amount}/{estimated_amount}({estimated_amount/amount}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}"
+            )
+
+            try:
+                arbitrage.flashArbitrage(amount, gas_limit=estimated_gas)
+            except Exception as e:
+                print(COLOR_RED + f"arbitrage failed with {e}" + COLOR_RESET)
+            else:
+                on_success(arbitrage)
+
+            i += 1
+
+def debug_arbitrage(arbitrage: DualArbitrage | TribArbitrage):
+    message = f"✅💹 Succesfully arbitraged {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}"
+    notify(message)
+    print(message)
+    print("-"*len(message))
+
+subscribers = set()
+api = Bot(BOT_API)
+
+@message_handler(api)
+def handler(api: Bot, message: Message):
+    if message.content() == "/start":
+        api.send_message(message.reply("Hi there, this is FLAKars notification bot, now you will be notified about all arbitrages made by it"))
+        subscribers.add(message.chat_id())
+
+bot_thread = threading.Thread(target=api.run, daemon=True)
+bot_thread.start()
+
+def notify(message: str):
+    for subscriber in subscribers:
+        api.send_message(Message(message, subscriber))
+
 with open(sys.argv[1], "r") as file:
     config = json.loads(file.read())
+    dual = config["dual"]
     fl = config["fl"]
     node = config["node"]
     build = config["build"]
@@ -167,75 +254,21 @@ eth_token = get_addr_by_sym(WETH)
 
 while True:
     print("Fetching prices...")
-    arbitrages = get_most_profitable(
-        web3,
-        contract,
-        account,
-        [get_addr_by_sym(fl_token["symbol"]) for fl_token in fl],
-        [token["address"] for token in tokens],
-        [(router["address"], router["estim"] if "estim" in router else None, router["avail"] if "avail" in router else None) for router in routers]
-    )
+    arb_routers = [(router["address"], router["estim"] if "estim" in router else None, router["avail"] if "avail" in router else None) for router in routers]
+    if dual:
+        arbitrages = get_most_profitable_dual(
+            [get_addr_by_sym(fl_token["symbol"]) for fl_token in fl],
+            [token["address"] for token in tokens],
+            arb_routers,
+            debug_arbitrage
+        )
+    else:
+        arbitrages = get_most_profitable_trib(
+            [get_addr_by_sym(fl_token["symbol"]) for fl_token in fl],
+            [token["address"] for token in tokens],
+            arb_routers,
+            debug_arbitrage
+        )
 
     # arbitraging
-    while len(arbitrages) != 0:
-        i = 0
-        while i<len(arbitrages):
-            arbitrage = arbitrages[i][0]
-            eth_pair = arbitrages[i][1]
-
-            estimated_gas = 0
-            token1_gas = 0
-            amount = 0
-            try:
-                eth = int(ESTIMATE_GAS_ETH*1e18)
-                token1_amount = int(eth_pair.convert(eth) if arbitrage.pair1.token1 != eth_pair.token1 else eth)
-                estimated_gas = arbitrage.estimateGasFlashArbitrage(token1_amount)
-
-                eth = int((web3.eth.gas_price*GAS)*estimated_gas)
-                token1_gas = eth_pair.convert(eth) if arbitrage.pair1.token1 != eth_pair.token1 else eth
-                amount = int(token1_gas*FLA_GAS)
-
-                arbitrage.estimateGasFlashArbitrage(amount)
-            except Exception as e:
-                print(
-                    COLOR_RED +
-                    f"removing {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} due to flarbitrage gas estimation failed with {e}"
-                    + COLOR_RESET
-                )
-                continue
-
-            amount = 0
-            estimated_amount = 0
-            try:
-                estimated_amount = arbitrage.estimate(amount)
-
-                income = estimated_amount - amount
-                if income <= token1_gas:
-                    print(COLOR_RED + f"removing {amount}/{estimated_amount}({estimated_amount/amount}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}" + COLOR_RESET)
-                    arbitrages.pop(i)
-                    continue
-            except Exception as e:
-                print(
-                    COLOR_RED +
-                    f"removing {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} estimation failed with {e}"
-                    + COLOR_RESET
-                )
-                arbitrages.pop(i)
-                continue
-
-            print(
-                f"found {amount}/{estimated_amount}({estimated_amount/amount}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}"
-            )
-
-            try:
-                arbitrage.flashArbitrage(amount, gas_limit=estimated_gas)
-            except Exception as e:
-                print(COLOR_RED + f"arbitrage failed with {e}" + COLOR_RESET)
-            else:
-                print(
-                    f"✅💹 Succesfully arbitraged {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}"
-                )
-
-                print("-------------------------------------------------------")
-
-            i += 1
+    arbitrage_while_profitable(arbitrages, debug_arbitrage)

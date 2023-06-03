@@ -1,4 +1,5 @@
-from consts import GAS
+from consts import *
+from colors import *
 from web3 import Web3
 import json
 import sys
@@ -30,6 +31,8 @@ def deploy(node: str, abi, bytecode, private_key, *args):
 
     eth = gas_price*gas_limit/1e18
     print(f"publish will consume {eth} ETH, gas price - {gas_price}, gas limit - {gas_limit}")
+    if eth > MAX_GAS:
+        raise RuntimeError(COLOR_RED + f"gas fee({eth}) is too high" + COLOR_RESET)
 
     tx = constructor.build_transaction({
         "from": account.address,

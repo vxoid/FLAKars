@@ -23,6 +23,7 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
     uint24 private constant feev3 = 3000; // 0.3 %
     address private immutable owner;
     struct ArbitrageInfo {
+        bool dual; // true for dual false for trible
         address token2;
         address token3;
         address router1;
@@ -67,11 +68,11 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
         }
     }
 
-    function dexArbitrage(address router1, address router2, address router3, address token1, address token2, address token3, uint256 amount) external onlyOwner returns(uint256) {
-        return _dexArbitrage(router1, router2, router3, token1, token2, token3, amount);
+    function tribDexArbitrage(address router1, address router2, address router3, address token1, address token2, address token3, uint256 amount) external onlyOwner returns(uint256) {
+        return _tribDexArbitrage(router1, router2, router3, token1, token2, token3, amount);
     }
 
-    function _dexArbitrage(address router1, address router2, address router3, address token1, address token2, address token3, uint256 amount) internal returns(uint256) {
+    function _tribDexArbitrage(address router1, address router2, address router3, address token1, address token2, address token3, uint256 amount) internal returns(uint256) {
         uint256 startBalance = IERC20(token1).balanceOf(address(this));
         uint256 initalToken2Balance = IERC20(token2).balanceOf(address(this));
         uint256 initalToken3Balance = IERC20(token3).balanceOf(address(this));
@@ -83,11 +84,11 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
         uint256 newBalance = IERC20(token1).balanceOf(address(this));
         string memory message = "The arbitrage wasnt profitable ";
         message = message
-            .concat(startBalance.toStr())
-            .concat("/")
             .concat(newBalance.toStr())
+            .concat("/")
+            .concat(startBalance.toStr())
             .concat(" (")
-            .concat(((startBalance*100)/newBalance).toStr())
+            .concat(((newBalance*100)/startBalance).toStr())
             .concat("%)");
 
         require(newBalance > startBalance, message);
@@ -95,7 +96,33 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
         return newBalance;
     }
 
-    function convert(address router, address tokenIn, address tokenOut, uint256 amount) external returns (uint256) {
+    function dualDexArbitrage(address router1, address router2, address token1, address token2, uint256 amount) external onlyOwner returns(uint256) {
+        return _dualDexArbitrage(router1, router2, token1, token2, amount);
+    }
+
+    function _dualDexArbitrage(address router1, address router2, address token1, address token2, uint256 amount) internal returns(uint256) {
+        uint256 startBalance = IERC20(token1).balanceOf(address(this));
+        uint256 initalToken2Balance = IERC20(token2).balanceOf(address(this));
+
+        swap(router1, token1, token2, amount);
+        swap(router2, token2, token1, IERC20(token2).balanceOf(address(this))-initalToken2Balance);
+
+        uint256 newBalance = IERC20(token1).balanceOf(address(this));
+        string memory message = "The arbitrage wasnt profitable ";
+        message = message
+            .concat(newBalance.toStr())
+            .concat("/")
+            .concat(startBalance.toStr())
+            .concat(" (")
+            .concat(((newBalance*100)/startBalance).toStr())
+            .concat("%)");
+
+        require(newBalance > startBalance, message);
+
+        return newBalance;
+    }
+
+    function convert(address router, address tokenIn, address tokenOut, uint256 amount) external onlyOwner returns (uint256) {
         return _convert(router, tokenIn, tokenOut, amount);
 	}
 
@@ -136,13 +163,33 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
 		token.transfer(owner, amount);
 	}
 
-    function flArbitrage(address router1, address router2, address router3, address token1, address token2, address token3, uint256 amount) external onlyOwner {
+    function flTribArbitrage(address router1, address router2, address router3, address token1, address token2, address token3, uint256 amount) external onlyOwner {
         ArbitrageInfo memory info = ArbitrageInfo({
+            dual: false,
             token2: token2,
             token3: token3,
             router1: router1,
             router2: router2,
             router3: router3
+        });
+
+        POOL.flashLoanSimple(
+            address(this),
+            token1,
+            amount,
+            abi.encode(info),
+            0
+        );
+    }
+
+    function flDualArbitrage(address router1, address router2, address token1, address token2, uint256 amount) external onlyOwner {
+        ArbitrageInfo memory info = ArbitrageInfo({
+            dual: true,
+            token2: token2,
+            token3: address(0),
+            router1: router1,
+            router2: router2,
+            router3: address(0)
         });
 
         POOL.flashLoanSimple(
@@ -163,7 +210,11 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
     ) external override returns (bool) {
         ArbitrageInfo memory info = abi.decode(params, (ArbitrageInfo));
 
-        _dexArbitrage(info.router1, info.router2, info.router3, token, info.token2, info.token3, amount);
+        if (info.dual) {
+            _dualDexArbitrage(info.router1, info.router2, token, info.token2, amount);
+        } else {
+            _tribDexArbitrage(info.router1, info.router2, info.router3, token, info.token2, info.token3, amount);
+        }
 
         IERC20(token).approve(address(POOL), amount + fee);
 

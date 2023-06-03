@@ -25,8 +25,8 @@ def withdraw(web3: Web3, contract, account, token, amount):
 
     return web3.eth.wait_for_transaction_receipt(tx_hash)
 
-def estimateGasFlArbitrage(contract, pk, router1, router2, router3, token1, token2, token3, amount):
-    function = contract.functions.flArbitrage(
+def estimateGasFlTribArbitrage(contract, pk, router1, router2, router3, token1, token2, token3, amount):
+    function = contract.functions.flTribArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
         Web3.to_checksum_address(router3),
@@ -37,8 +37,18 @@ def estimateGasFlArbitrage(contract, pk, router1, router2, router3, token1, toke
     )
     return function.estimate_gas({ "from": pk })
 
-def flArbitrage(web3: Web3, contract, account, router1, router2, router3, token1, token2, token3, amount, gas_limit = None):
-    function = contract.functions.flArbitrage(
+def estimateGasFlDualArbitrage(contract, pk, router1, router2, token1, token2, amount, gas_limit = None):
+    function = contract.functions.flDualArbitrage(
+        Web3.to_checksum_address(router1),
+        Web3.to_checksum_address(router2),
+        Web3.to_checksum_address(token1),
+        Web3.to_checksum_address(token2),
+        amount
+    )
+    return function.estimate_gas({ "from": pk })
+
+def flTribArbitrage(web3: Web3, contract, account, router1, router2, router3, token1, token2, token3, amount, gas_limit = None):
+    function = contract.functions.flTribArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
         Web3.to_checksum_address(router3),
@@ -63,14 +73,58 @@ def flArbitrage(web3: Web3, contract, account, router1, router2, router3, token1
 
     return web3.eth.wait_for_transaction_receipt(tx_hash)
 
-def dexArbitrage(web3: Web3, contract, account, router1, router2, router3, token1, token2, token3, amount):
-    function = contract.functions.dexArbitrage(
+def flDualArbitrage(web3: Web3, contract, account, router1, router2, token1, token2, amount, gas_limit = None):
+    function = contract.functions.flDualArbitrage(
+        Web3.to_checksum_address(router1),
+        Web3.to_checksum_address(router2),
+        Web3.to_checksum_address(token1),
+        Web3.to_checksum_address(token2),
+        amount
+    )
+    estimated = function.estimate_gas({ "from": account.address }) # even if gas limit was specified i need to test will arbitrage be successful
+
+    if gas_limit is None:
+        gas_limit = estimated
+
+    tx = function.build_transaction({
+        "from": account.address,
+        "nonce": web3.eth.get_transaction_count(account.address),
+        "gas": gas_limit,
+        "gasPrice": int(web3.eth.gas_price*GAS)
+    })
+    signed_tx = account.sign_transaction(tx)
+    tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+
+    return web3.eth.wait_for_transaction_receipt(tx_hash)
+
+def tribDexArbitrage(web3: Web3, contract, account, router1, router2, router3, token1, token2, token3, amount):
+    function = contract.functions.tribDexArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
         Web3.to_checksum_address(router3),
         Web3.to_checksum_address(token1),
         Web3.to_checksum_address(token2),
         Web3.to_checksum_address(token3),
+        amount
+    )
+
+    tx = function.build_transaction({
+        "from": account.address,
+        "nonce": web3.eth.get_transaction_count(account.address),
+        "gas": function.estimate_gas({ "from": account.address }),
+        "gasPrice": int(web3.eth.gas_price*GAS)
+    })
+    signed_tx = account.sign_transaction(tx)
+    tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+
+    return web3.eth.wait_for_transaction_receipt(tx_hash)
+
+def dualDexArbitrage(web3: Web3, contract, account, router1, router2, token1, token2, amount):
+    function = contract.functions.dualDexArbitrage(
+        Web3.to_checksum_address(router1),
+        Web3.to_checksum_address(router2),
+        Web3.to_checksum_address(token1),
+        Web3.to_checksum_address(token2),
         amount
     )
 
