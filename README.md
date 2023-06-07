@@ -1,7 +1,6 @@
-# FLAKars v0.0.4 | etherium network arbitrage bot
+# FLAKars v0.0.5 | etherium network arbitrage bot
 ## Changelog
-- Added switch between dual dex trade and triple dex arbitrage
-- Added telegram notificator on successful arbitrage if user subscribes with /start query while bot was running
+- Replaced telegram bot with discord bot
 ## Technologies (Libraries)
 - <a href="https://aave.com">flashloans</a>
 - <a href="https://uniswap.org">uniswap v2 | v3 interfaces</a>
@@ -15,7 +14,6 @@
     "node": "https://goerli.infura.io/v3/<your-infura-api>",
     "build": "build/FLAKars",
     "private_key": "<your-wallet-sk>",
-    "dual": false,
     "weth": "wETH",
     "eth-dex": "sushiswap",
     "routers": [

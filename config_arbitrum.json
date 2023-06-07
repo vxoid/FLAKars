@@ -3,7 +3,6 @@
     "node": "https://arb1.arbitrum.io/rpc",
     "build": "build/FLAKars",
     "private_key": "your-wallet-sk",
-    "dual": true,
     "weth": "wETH",
     "eth-dex": "sushiswap",
     "routers": [

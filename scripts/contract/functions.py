@@ -37,7 +37,7 @@ def estimateGasFlTribArbitrage(contract, pk, router1, router2, router3, token1, 
     )
     return function.estimate_gas({ "from": pk })
 
-def estimateGasFlDualArbitrage(contract, pk, router1, router2, token1, token2, amount, gas_limit = None):
+def estimateGasFlDualArbitrage(contract, pk, router1, router2, token1, token2, amount):
     function = contract.functions.flDualArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
