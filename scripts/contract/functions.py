@@ -1,4 +1,3 @@
-from consts import GAS
 from web3 import Web3
 
 def balanceOf(contract, pk, token):
@@ -18,7 +17,7 @@ def withdraw(web3: Web3, contract, account, token, amount):
         "from": account.address,
         "nonce": web3.eth.get_transaction_count(account.address),
         "gas": function.estimate_gas({ "from": account.address }),
-        "gasPrice": int(web3.eth.gas_price*GAS)
+        "gasPrice": web3.eth.gas_price
     })
     signed_tx = account.sign_transaction(tx)
     tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
@@ -47,7 +46,7 @@ def estimateGasFlDualArbitrage(contract, pk, router1, router2, token1, token2, a
     )
     return function.estimate_gas({ "from": pk })
 
-def flTribArbitrage(web3: Web3, contract, account, router1, router2, router3, token1, token2, token3, amount, gas_limit = None):
+def flTribArbitrage(web3: Web3, contract, account, router1, router2, router3, token1, token2, token3, amount):
     function = contract.functions.flTribArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
@@ -57,23 +56,20 @@ def flTribArbitrage(web3: Web3, contract, account, router1, router2, router3, to
         Web3.to_checksum_address(token3),
         amount
     )
-    estimated = function.estimate_gas({ "from": account.address }) # even if gas limit was specified i need to test will arbitrage be successful
-
-    if gas_limit is None:
-        gas_limit = estimated
+    gas_limit = function.estimate_gas({ "from": account.address }) # even if gas limit was specified i need to test will arbitrage be successful
 
     tx = function.build_transaction({
         "from": account.address,
         "nonce": web3.eth.get_transaction_count(account.address),
         "gas": gas_limit,
-        "gasPrice": int(web3.eth.gas_price*GAS)
+        "gasPrice": web3.eth.gas_price
     })
     signed_tx = account.sign_transaction(tx)
     tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
     return web3.eth.wait_for_transaction_receipt(tx_hash)
 
-def flDualArbitrage(web3: Web3, contract, account, router1, router2, token1, token2, amount, gas_limit = None):
+def flDualArbitrage(web3: Web3, contract, account, router1, router2, token1, token2, amount):
     function = contract.functions.flDualArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
@@ -81,16 +77,13 @@ def flDualArbitrage(web3: Web3, contract, account, router1, router2, token1, tok
         Web3.to_checksum_address(token2),
         amount
     )
-    estimated = function.estimate_gas({ "from": account.address }) # even if gas limit was specified i need to test will arbitrage be successful
-
-    if gas_limit is None:
-        gas_limit = estimated
+    gas_limit = function.estimate_gas({ "from": account.address }) # even if gas limit was specified i need to test will arbitrage be successful
 
     tx = function.build_transaction({
         "from": account.address,
         "nonce": web3.eth.get_transaction_count(account.address),
         "gas": gas_limit,
-        "gasPrice": int(web3.eth.gas_price*GAS)
+        "gasPrice": web3.eth.gas_price
     })
     signed_tx = account.sign_transaction(tx)
     tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
@@ -112,7 +105,7 @@ def tribDexArbitrage(web3: Web3, contract, account, router1, router2, router3, t
         "from": account.address,
         "nonce": web3.eth.get_transaction_count(account.address),
         "gas": function.estimate_gas({ "from": account.address }),
-        "gasPrice": int(web3.eth.gas_price*GAS)
+        "gasPrice": web3.eth.gas_price
     })
     signed_tx = account.sign_transaction(tx)
     tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
@@ -132,7 +125,7 @@ def dualDexArbitrage(web3: Web3, contract, account, router1, router2, token1, to
         "from": account.address,
         "nonce": web3.eth.get_transaction_count(account.address),
         "gas": function.estimate_gas({ "from": account.address }),
-        "gasPrice": int(web3.eth.gas_price*GAS)
+        "gasPrice": web3.eth.gas_price
     })
     signed_tx = account.sign_transaction(tx)
     tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)

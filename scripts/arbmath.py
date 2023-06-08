@@ -2,32 +2,28 @@ from arbitrage import *
 from consts import *
 from typing import Tuple
 
-def estimateGasAndAmount(web3: Web3, arbitrage: DualArbitrage | TribArbitrage, eth_pair: Pair) -> Tuple[int, int, int, bool, str]:
+def estimateGasAndAmount(web3: Web3, arbitrage: DualArbitrage | TribArbitrage, eth_pair: Pair, gas_mult: float) -> Tuple[int, int, int, str]:
+    eth_gas_estimate = int(ESTIMATE_GAS_ETH*1e18)
+    token1_gas_estimate = eth_pair.convert(eth_gas_estimate) if eth_pair.token1 != arbitrage.pair1.token1 else eth_gas_estimate
+
     estimated_gas = 0
     try:
-        eth = int(ESTIMATE_GAS_ETH*1e18)
-        token1_amount = eth_pair.convert(eth) if arbitrage.pair1.token1 != eth_pair.token1 else eth
-        estimated_gas = arbitrage.estimateGasFlashArbitrage(token1_amount)
+        estimated_gas = arbitrage.estimateGasFlashArbitrage(token1_gas_estimate)
     except Exception as e:
-        return 0, 0, 0, False, f"arbitrage estimation error - {e}"
+        return 0, 0, 0, e
     
+    amount_eth = int(web3.eth.gas_price*estimated_gas)
+    amount_token1 = eth_pair.convert(amount_eth) if eth_pair.token1 != arbitrage.pair1.token1 else amount_eth
+    amount = int(amount_token1*gas_mult)
+
     estimated_amount = 0
-    token1_gas = 0
-    amount = 0
     try:
-        eth = int(ESTIMATE_GAS_ETH*1e18)
-
-        token1_gas = eth_pair.convert(eth) if arbitrage.pair1.token1 != eth_pair.token1 else eth
-        amount = int(token1_gas*FLA_GAS)
-
         estimated_amount = arbitrage.estimate(amount)
-
-        income = estimated_amount - amount
-
-        if income <= token1_gas:
-            message = f"won\'t be profitable {income} - {amount+token1_gas}/{estimated_amount}({estimated_amount/(amount+token1_gas)})"
-            return 0, 0, 0, False, message
     except Exception as e:
-        return 0, 0, 0, False, f"estimation error - {e}"
-
-    return amount, estimated_amount, estimated_gas, True, ""
+        return 0, 0, 0, e
+    
+    income = estimated_amount - amount
+    if income < amount_token1:
+        return 0, 0, 0, f"Income does not cover costs ({amount_token1}/{income})"
+    
+    return amount, estimated_amount, estimated_gas, None

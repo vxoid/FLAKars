@@ -21,7 +21,7 @@ if len(sys.argv) < 3:
     usage(sys.argv)
     sys.exit(-1)
 
-async def get_most_profitable_trib(fl, tokens, routers, eth_token, eth_router, on_success, *args) -> List[Tuple[TribArbitrage, Pair]]:
+async def get_most_profitable_trib(fl, tokens, routers, eth_token, eth_router, mult, on_success, *args) -> List[Tuple[TribArbitrage, Pair]]:
     eth_router, eth_estim, eth_avail = eth_router
     arbitrages = []
     for fl_token in fl:
@@ -83,8 +83,8 @@ async def get_most_profitable_trib(fl, tokens, routers, eth_token, eth_router, o
                                 pair2,
                                 pair3
                             )
-                            amount, estimated_amount, estimated_gas, succed, error = estimateGasAndAmount(web3, arbitrage, eth_pair)
-                            if not succed:
+                            amount, estimated_amount, _, error = estimateGasAndAmount(web3, arbitrage, eth_pair, mult)
+                            if error is not None:
                                 print(
                                     COLOR_RED +
                                     f"{arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} failed with {error}"
@@ -95,16 +95,16 @@ async def get_most_profitable_trib(fl, tokens, routers, eth_token, eth_router, o
                             print(f"found {amount}/{estimated_amount}({estimated_amount/amount}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}")
 
                             try:
-                                arbitrage.flashArbitrage(amount, gas_limit=estimated_gas)
+                                arbitrage.flashArbitrage(amount)
                             except Exception as e:
                                 print(COLOR_RED + f"arbitrage failed with {e}" + COLOR_RESET)
                             else:
-                                await on_success(arbitrage, amount, *args)
+                                await on_success(arbitrage, amount, estimated_amount, *args)
                             arbitrages.append((arbitrage, eth_pair))
                                        
     return arbitrages
 
-async def get_most_profitable_dual(fl, tokens, routers, eth_token, eth_router, on_success, *args) -> List[Tuple[DualArbitrage, Pair]]:
+async def get_most_profitable_dual(fl, tokens, routers, eth_token, eth_router, mult, on_success, *args) -> List[Tuple[DualArbitrage, Pair]]:
     eth_router, eth_estim, eth_avail = eth_router
     arbitrages = []
     for fl_token in fl:
@@ -162,8 +162,8 @@ async def get_most_profitable_dual(fl, tokens, routers, eth_token, eth_router, o
                         pair2
                     )
 
-                    amount, estimated_amount, estimated_gas, succed, error = estimateGasAndAmount(web3, arbitrage, eth_pair)
-                    if not succed:
+                    amount, estimated_amount, _, error = estimateGasAndAmount(web3, arbitrage, eth_pair, mult)
+                    if error is not None:
                         print(
                             COLOR_RED +
                             f"{arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} failed with {error}"
@@ -174,24 +174,24 @@ async def get_most_profitable_dual(fl, tokens, routers, eth_token, eth_router, o
                     print(f"found {amount}/{estimated_amount}({estimated_amount/amount}) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}")
 
                     try:
-                        arbitrage.flashArbitrage(amount, gas_limit=estimated_gas)
+                        arbitrage.flashArbitrage(amount)
                     except Exception as e:
                         print(COLOR_RED + f"arbitrage failed with {e}" + COLOR_RESET)
                     else:
-                        await on_success(arbitrage, amount, *args)
+                        await on_success(arbitrage, amount, estimated_amount, *args)
                     arbitrages.append((arbitrage, eth_pair))
                                     
     return arbitrages
 
-async def arbitrage_while_profitable(arbitrages: List[Tuple[DualArbitrage | TribArbitrage, Pair]], on_success, *args):
+async def arbitrage_while_profitable(arbitrages: List[Tuple[DualArbitrage | TribArbitrage, Pair]], mult: float, on_success, *args):
     while len(arbitrages) != 0:
         i = 0
         while i<len(arbitrages):
             arbitrage = arbitrages[i][0]
             eth_pair = arbitrages[i][1]
 
-            amount, estimated_amount, estimated_gas, succed, error = estimateGasAndAmount(web3, arbitrage, eth_pair)
-            if not succed:
+            amount, estimated_amount, _, error = estimateGasAndAmount(web3, arbitrage, eth_pair, mult)
+            if error is not None:
                 print(
                     COLOR_RED +
                     f"{arbitrage.debug(get_sym_by_addr, get_dex_by_addr)} failed with {error}"
@@ -205,15 +205,15 @@ async def arbitrage_while_profitable(arbitrages: List[Tuple[DualArbitrage | Trib
             )
 
             try:
-                arbitrage.flashArbitrage(amount, gas_limit=estimated_gas)
+                arbitrage.flashArbitrage(amount)
             except Exception as e:
                 print(COLOR_RED + f"arbitrage failed with {e}" + COLOR_RESET)
             else:
-                await on_success(arbitrage, amount, *args)
+                await on_success(arbitrage, amount, estimated_amount, *args)
 
             i += 1
 
-async def debug_arbitrage(arbitrage: DualArbitrage | TribArbitrage, amount, ctx):
+async def debug_arbitrage(arbitrage: DualArbitrage | TribArbitrage, amount, estimated_amount, ctx):
     message = f"✅ Succesfully arbitraged {amount} {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}"
     await notify(message, ctx)
     print(message)
@@ -249,7 +249,7 @@ account = web3.eth.account.from_key(private_key)
 eth_token = get_addr_by_sym(weth)
 eth_router = get_addr_by_dex(eth_dex)
 
-async def flash_arbitrage(ctx, dual):
+async def flash_arbitrage(ctx, mult: float, dual: bool):
     message = "Fetching prices🌐..."
 
     await notify(message, ctx)
@@ -264,6 +264,7 @@ async def flash_arbitrage(ctx, dual):
             arb_routers,
             eth_token,
             (eth_dex, eth_estim, eth_avail),
+            mult,
             debug_arbitrage,
             ctx
         )
@@ -274,6 +275,7 @@ async def flash_arbitrage(ctx, dual):
             arb_routers,
             eth_token,
             (eth_dex, eth_estim, eth_avail),
+            mult,
             debug_arbitrage,
             ctx
         )
@@ -286,7 +288,7 @@ async def flash_arbitrage(ctx, dual):
         return
     
     # arbitraging
-    await arbitrage_while_profitable(arbitrages, debug_arbitrage, ctx)
+    await arbitrage_while_profitable(arbitrages, mult, debug_arbitrage, ctx)
     message = "Arbitrages ended✅."
 
     await notify(message, ctx)
@@ -302,7 +304,7 @@ loop = asyncio.get_event_loop()
 async def notify(message: str, ctx):
     await ctx.channel.send(message)
 
-@bot.command()
+@bot.command(description="get current gas price in WEI/GWEI")
 async def gas(ctx):
     gas_price = web3.eth.gas_price/1e18
     value = "GWEI"
@@ -311,12 +313,12 @@ async def gas(ctx):
         gas_price = int(gas_price*1e18)
     await ctx.channel.send(f"current gas price in {value} is {gas_price}")
 
-@bot.command()
-async def arbitrage2(ctx):
-    await flash_arbitrage(ctx, True)
+@bot.command(description="dual dex flashloan arbitrage")
+async def arbitrage2(ctx, mult: int):
+    await flash_arbitrage(ctx, mult, True)
 
-@bot.command()
-async def arbitrage3(ctx):
-    await flash_arbitrage(ctx, False)
+@bot.command(description="triple dex flashload arbitrage")
+async def arbitrage3(ctx, mult: int):
+    await flash_arbitrage(ctx, mult, False)
 
 bot.run(BOT_TOKEN)

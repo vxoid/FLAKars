@@ -34,6 +34,9 @@ class Pair:
     def debug_first(self, get_sym_by_addr, get_dex_by_addr):
         return f"{get_sym_by_addr(self.token1)}({get_dex_by_addr(self.router)})"
     
+    def debug(self, get_sym_by_addr, get_dex_by_addr):
+        return f"{get_dex_by_addr(self.router)} {get_sym_by_addr(self.token1)} -> {get_sym_by_addr(self.token2)}"
+    
 class DualArbitrage:
     def __init__(
             self,
@@ -78,7 +81,7 @@ class DualArbitrage:
             amount
         )
     
-    def flashArbitrage(self, amount, gas_limit=None):
+    def flashArbitrage(self, amount):
         return flDualArbitrage(
             self.web3,
             self.contract,
@@ -87,8 +90,7 @@ class DualArbitrage:
             self.pair2.router,
             self.pair1.token1,
             self.pair2.token1,
-            amount,
-            gas_limit=gas_limit
+            amount
         )
     
     def debug(self, get_sym_by_addr, get_dex_by_addr):
@@ -146,7 +148,7 @@ class TribArbitrage:
             amount
         )
     
-    def flashArbitrage(self, amount, gas_limit=None):
+    def flashArbitrage(self, amount):
         return flTribArbitrage(
             self.web3,
             self.contract,
@@ -157,8 +159,7 @@ class TribArbitrage:
             self.pair1.token1,
             self.pair2.token1,
             self.pair3.token1,
-            amount,
-            gas_limit=gas_limit
+            amount
         )
     
     def debug(self, get_sym_by_addr, get_dex_by_addr):

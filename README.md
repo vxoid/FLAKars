@@ -1,6 +1,7 @@
-# FLAKars v0.0.5 | etherium network arbitrage bot
+# FLAKars v0.1.0 | etherium network arbitrage bot
 ## Changelog
-- Replaced telegram bot with discord bot
+- added argument to /arbitrage2 which multiplies amount to flash loan arbitrage
+- fixed error with gas estimation
 ## Technologies (Libraries)
 - <a href="https://aave.com">flashloans</a>
 - <a href="https://uniswap.org">uniswap v2 | v3 interfaces</a>
@@ -11,11 +12,11 @@
 ```json
 {
     "LPA": "0xC911B590248d127aD18546B186cC6B324e99F02c",
-    "node": "https://goerli.infura.io/v3/<your-infura-api>",
+    "node": "https://goerli.infura.io/v3/<your-infura-key>",
     "build": "build/FLAKars",
     "private_key": "<your-wallet-sk>",
     "weth": "wETH",
-    "eth-dex": "sushiswap",
+    "eth-dex": "uniswap v2",
     "routers": [
         {
             "dex": "uniswap v3",
