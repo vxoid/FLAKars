@@ -214,7 +214,7 @@ async def arbitrage_while_profitable(arbitrages: List[Tuple[DualArbitrage | Trib
             i += 1
 
 async def debug_arbitrage(arbitrage: DualArbitrage | TribArbitrage, amount, estimated_amount, ctx):
-    message = f"✅ Succesfully arbitraged {amount} {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}"
+    message = f"✅ Succesfully arbitraged {amount} to {estimated_amount} ({estimated_amount*100/amount}%) {arbitrage.debug(get_sym_by_addr, get_dex_by_addr)}"
     await notify(message, ctx)
     print(message)
 

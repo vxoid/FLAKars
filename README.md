@@ -1,7 +1,6 @@
-# FLAKars v0.1.0 | etherium network arbitrage bot
+# FLAKars v0.1.1 | etherium network arbitrage bot
 ## Changelog
-- added argument to /arbitrage2 which multiplies amount to flash loan arbitrage
-- fixed error with gas estimation
+- added more debug for successful arbitrages
 ## Technologies (Libraries)
 - <a href="https://aave.com">flashloans</a>
 - <a href="https://uniswap.org">uniswap v2 | v3 interfaces</a>
