@@ -1,6 +1,6 @@
 {
     "LPA": "0xC911B590248d127aD18546B186cC6B324e99F02c",
-    "node": "https://goerli.infura.io/v3/<your-infura-api>",
+    "node": "https://goerli.infura.io/v3/<your-infura-tokens>",
     "build": "build/FLAKars",
     "private_key": "<your-wallet-sk>",
     "weth": "wETH",

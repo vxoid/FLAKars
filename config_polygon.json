@@ -1,0 +1,41 @@
+{
+  "LPA": "0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb",
+  "node": "https://polygon-mainnet.infura.io/v3/<your-infura-tokens>",
+  "build": "build/FLAKars",
+  "private_key": "<your-wallet-sk>",
+  "weth": "wETH",
+  "eth-dex": "sushiswap",
+  "routers": [
+    {
+      "dex": "uniswap v3",
+      "address": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+      "estim": "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6",
+      "avail": "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+    },
+    { "dex": "sushiswap", "address": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506" },
+    { "dex": "quickswap", "address": "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff" }
+  ],
+  "fl": [
+    { "symbol": "USDC" },
+    { "symbol": "EURS" },
+    { "symbol": "wETH" },
+    { "symbol": "wBTC" },
+    { "symbol": "DAI" },
+    { "symbol": "USDT" },
+    { "symbol": "LINK" }
+  ],
+  "tokens": [
+    { "symbol": "USDC", "address": "0x2791bca1f2de4661ed88a30c99a7a9449aa84174" },
+    { "symbol": "EURS", "address": "0xe111178a87a3bff0c8d18decba5798827539ae99" },
+    { "symbol": "wETH", "address": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619" },
+    { "symbol": "wBTC", "address": "0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6" },
+    { "symbol": "DAI", "address": "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063" },
+    { "symbol": "USDT", "address": "0xc2132d05d31c914a87c6611c10748aeb04b58e8f" },
+    { "symbol": "AAVE", "address": "0xd6df932a45c0f255f85145f286ea0b292b21c90b" },
+    { "symbol": "LINK", "address": "0x53e0bca35ec356bd5dddfebbd1fc0fd03fabad39" },
+    { "symbol": "UNI", "address": "0xb33eaad8d922b1083446dc23f610c2567fb5180f" },
+    { "symbol": "BAT", "address": "0x3cef98bb43d732e2f285ee605a8158cde967d219" },
+    { "symbol": "CTSI", "address": "0x2727ab1c2d22170abc9b595177b2d5c6e1ab7b7b" },
+    { "symbol": "SHIB", "address": "0x6f8a06447Ff6FcF75d803135a7de15CE88C1d4ec" }
+  ]
+}

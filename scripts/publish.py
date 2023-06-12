@@ -26,7 +26,7 @@ def deploy(node: str, abi, bytecode, private_key, *args):
 
     constructor = contract.constructor(*args)
     
-    gas_price = int(web3.eth.gas_price*GAS)
+    gas_price = web3.eth.gas_price
     gas_limit = constructor.estimate_gas()
 
     eth = gas_price*gas_limit/1e18
