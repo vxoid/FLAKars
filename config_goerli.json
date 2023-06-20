@@ -1,7 +1,8 @@
 {
     "LPA": "0xC911B590248d127aD18546B186cC6B324e99F02c",
-    "node": "https://goerli.infura.io/v3/<your-infura-tokens>",
-    "build": "build/FLAKars",
+    "node": "https://goerli.infura.io/v3/<your-infura-token>",
+    "abi": "build/FLAKars.abi",
+    "bytecode": "build/FLAKars.bin",
     "private_key": "<your-wallet-sk>",
     "weth": "wETH",
     "eth-dex": "uniswap v2",
@@ -23,12 +24,12 @@
         }
     ],
     "fl": [
-        { "symbol": "USDC aave" },
-        { "symbol": "wETH aave" },
-        { "symbol": "wBTC aave" },
-        { "symbol": "DAI aave" },
-        { "symbol": "USDT aave" },
-        { "symbol": "LINK aave" }
+        "USDC aave",
+        "wETH aave",
+        "wBTC aave",
+        "DAI aave",
+        "USDT aave",
+        "LINK aave"
     ],
     "tokens": [
         { "symbol": "USDC", "address": "0x07865c6e87b9f70255377e024ace6630c1eaa37f" },

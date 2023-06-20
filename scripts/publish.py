@@ -15,6 +15,8 @@ if len(sys.argv) < 2:
     usage(sys.argv)
     sys.exit(-1)
 
+from cli import *
+
 def deploy(node: str, abi, bytecode, private_key, *args):
     web3 = Web3(Web3.HTTPProvider(node))
 
@@ -49,17 +51,10 @@ def deploy(node: str, abi, bytecode, private_key, *args):
 
     print("✅Contract was succesfully deployed at -", tx_receipt.contractAddress)
 
-with open(sys.argv[1], "r") as file:
-    config = json.loads(file.read())
-    lpa = config["LPA"]
-    node = config["node"]
-    build = config["build"]
-    private_key = config["private_key"]
-
-with open(f"{build}.bin", "r") as file:
+with open(bytecode, "r") as file:
     bytecode = "0x" + file.read().strip()
 
-with open(f"{build}.abi", "r") as file:
+with open(abi, "r") as file:
     abi = json.loads(file.read().strip())
 
 deploy(node, abi, bytecode, private_key, Web3.to_checksum_address(lpa))

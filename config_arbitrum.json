@@ -1,9 +1,9 @@
 {
     "LPA": "0xa97684ead0e402dc232d5a977953df7ecbab3cdb",
     "node": "https://arb1.arbitrum.io/rpc",
-    "build": "build/FLAKars",
+    "abi": "build/FLAKars.abi",
+    "bytecode": "build/FLAKars.bin",
     "private_key": "<your-wallet-sk>",
-    "weth": "wETH",
     "eth-dex": "sushiswap",
     "routers": [
         {

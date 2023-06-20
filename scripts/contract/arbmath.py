@@ -1,4 +1,4 @@
-from arbitrage import *
+from contract.arbitrage import *
 from consts import *
 from typing import Tuple
 

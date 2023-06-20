@@ -1,34 +1,38 @@
+from contract.etoken import Token
+from contract.dex import DEX
+from colors import *
 import json
 import sys
 
-def usage(args):
-    space = " "*len(args[0])
-    print("USAGE: ")
-    print(f"{args[0]} config.json 0x2B9F1873d99B3C6322b34e978699c7313C348d30")
-    print(f"{space  } ^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-    print(f"{space  } path to configuration file            contract address")
-
-if len(sys.argv) < 3:
-    usage(sys.argv)
-    sys.exit(-1)
-
 with open(sys.argv[1], "r") as file:
     config = json.loads(file.read())
-    fl = config["fl"]
-    weth = config["weth"]
-    eth_dex = config["eth-dex"]
+    lpa = config["LPA"]
     node = config["node"]
-    build = config["build"]
-    tokens = config["tokens"]
-    routers = config["routers"]
+    abi = config["abi"]
+    bytecode = config["bytecode"] if "bytecode" in config else None
+
+    tokens = [Token(token["address"], token["symbol"]) for token in config["tokens"]]
+    routers = [
+        DEX(
+            router["address"],
+            router["dex"],
+            router["estim"] if "estim" in router else None,
+            router["avail"] if "avail" in router else None
+        ) for router in config["routers"]
+    ]
+
+    def get_token_by_sym(symbol: str) -> Token:
+        try:
+            return [token for token in tokens if str(token) == symbol][0]
+        except IndexError:
+            raise ModuleNotFoundError(COLOR_RED + f"There isn't any token with symbol '{symbol}'" + COLOR_RESET)
+    def get_router_by_sym(dex: str) -> DEX:
+        try:
+            return [router for router in routers if str(router) == dex][0]
+        except IndexError:
+            raise ModuleNotFoundError(COLOR_RED + f"There isn't any router with name '{dex}'" + COLOR_RESET)
+    
+    fl = [get_token_by_sym(fl_token) for fl_token in config["fl"]]
+    weth = get_token_by_sym(config["weth"])
+    eth_router = get_router_by_sym(config["eth-dex"])
     private_key = config["private_key"]
-
-dex_by_addr = { router["address"]: router["dex"] for router in routers }
-addr_by_dex = { router["dex"]: router["address"] for router in routers }
-get_addr_by_dex = lambda dex: addr_by_dex[dex]
-get_dex_by_addr = lambda addr: dex_by_addr[addr]
-
-sym_by_addr = { token["address"]: token["symbol"] for token in tokens }
-addr_by_sym = { token["symbol"]: token["address"] for token in tokens }
-get_sym_by_addr = lambda addr: sym_by_addr[addr]
-get_addr_by_sym = lambda sym: addr_by_sym[sym]

@@ -1,7 +1,8 @@
 {
   "LPA": "0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb",
-  "node": "https://polygon-mainnet.infura.io/v3/<your-infura-tokens>",
-  "build": "build/FLAKars",
+  "node": "https://polygon-mainnet.infura.io/v3/<your-infura-token>",
+  "abi": "build/FLAKars.abi",
+  "bytecode": "build/FLAKars.bin",
   "private_key": "<your-wallet-sk>",
   "weth": "wETH",
   "eth-dex": "sushiswap",

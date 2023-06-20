@@ -1,6 +1,7 @@
+from web3.contract.contract import Contract
 from web3 import Web3
 
-def balanceOf(contract, pk, token):
+def balanceOf(contract, pk, token) -> int:
     function = contract.functions.balanceOf(
         Web3.to_checksum_address(token)
     )
@@ -24,7 +25,7 @@ def withdraw(web3: Web3, contract, account, token, amount):
 
     return web3.eth.wait_for_transaction_receipt(tx_hash)
 
-def estimateGasFlTribArbitrage(contract, pk, router1, router2, router3, token1, token2, token3, amount):
+def estimateGasFlTribArbitrage(contract: Contract, pk, router1: str, router2: str, router3: str, token1: str, token2: str, token3: str, amount: int) -> int:
     function = contract.functions.flTribArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
@@ -36,7 +37,7 @@ def estimateGasFlTribArbitrage(contract, pk, router1, router2, router3, token1, 
     )
     return function.estimate_gas({ "from": pk })
 
-def estimateGasFlDualArbitrage(contract, pk, router1, router2, token1, token2, amount):
+def estimateGasFlDualArbitrage(contract: Contract, pk, router1: str, router2: str, token1: str, token2: str, amount: int) -> int:
     function = contract.functions.flDualArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
@@ -46,7 +47,7 @@ def estimateGasFlDualArbitrage(contract, pk, router1, router2, token1, token2, a
     )
     return function.estimate_gas({ "from": pk })
 
-def flTribArbitrage(web3: Web3, contract, account, router1, router2, router3, token1, token2, token3, amount):
+def flTribArbitrage(web3: Web3, contract: Contract, account, router1: str, router2: str, router3: str, token1: str, token2: str, token3: str, amount: int):
     function = contract.functions.flTribArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
@@ -69,7 +70,7 @@ def flTribArbitrage(web3: Web3, contract, account, router1, router2, router3, to
 
     return web3.eth.wait_for_transaction_receipt(tx_hash)
 
-def flDualArbitrage(web3: Web3, contract, account, router1, router2, token1, token2, amount):
+def flDualArbitrage(web3: Web3, contract: Contract, account, router1: str, router2: str, token1: str, token2: str, amount: int):
     function = contract.functions.flDualArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
@@ -90,7 +91,7 @@ def flDualArbitrage(web3: Web3, contract, account, router1, router2, token1, tok
 
     return web3.eth.wait_for_transaction_receipt(tx_hash)
 
-def tribDexArbitrage(web3: Web3, contract, account, router1, router2, router3, token1, token2, token3, amount):
+def tribDexArbitrage(web3: Web3, contract: Contract, account, router1: str, router2: str, router3: str, token1: str, token2: str, token3: str, amount: int):
     function = contract.functions.tribDexArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
@@ -112,7 +113,7 @@ def tribDexArbitrage(web3: Web3, contract, account, router1, router2, router3, t
 
     return web3.eth.wait_for_transaction_receipt(tx_hash)
 
-def dualDexArbitrage(web3: Web3, contract, account, router1, router2, token1, token2, amount):
+def dualDexArbitrage(web3: Web3, contract: Contract, account, router1: str, router2: str, token1: str, token2: str, amount: int):
     function = contract.functions.dualDexArbitrage(
         Web3.to_checksum_address(router1),
         Web3.to_checksum_address(router2),
@@ -132,7 +133,7 @@ def dualDexArbitrage(web3: Web3, contract, account, router1, router2, token1, to
 
     return web3.eth.wait_for_transaction_receipt(tx_hash)
 
-def convert(contract, pk, router, tokenIn, tokenOut, amount):
+def convert(contract: Contract, pk, router: str, tokenIn: str, tokenOut: str, amount: int) -> int:
     function = contract.functions.convert(
         Web3.to_checksum_address(router),
         Web3.to_checksum_address(tokenIn),
@@ -142,7 +143,7 @@ def convert(contract, pk, router, tokenIn, tokenOut, amount):
 
     return function.call({ "from": pk })
 
-def available(contract, pk, router, token1, token2):
+def available(contract, pk, router, token1, token2) -> bool:
     function = contract.functions.available(
         Web3.to_checksum_address(router),
         Web3.to_checksum_address(token1),
