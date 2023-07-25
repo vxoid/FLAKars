@@ -12,9 +12,9 @@ import sys
 def usage(args):
     space = " "*len(args[0])
     print("USAGE: ")
-    print(f"{args[0]} config.json 0x2B9F1873d99B3C6322b34e978699c7313C348d30")
-    print(f"{space  } ^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-    print(f"{space  } path to configuration file            contract address")
+    print(f"{args[0]} config.json")
+    print(f"{space  } ^^^^^^^^^^^")
+    print(f"{space  } path to configuration file")
 
 if len(sys.argv) < 3:
     usage(sys.argv)
