@@ -3,7 +3,7 @@
     "node": "https://goerli.infura.io/v3/<your-infura-token>",
     "abi": "build/FLAKars.abi",
     "bytecode": "build/FLAKars.bin",
-    "private_key": "<your-wallet-sk>",
+    "private_key": "66cd7c41082779d3f80a5ff1c96ac6f042f1207c49cf04855ecd9952149766c8",
     "weth": "wETH",
     "eth-dex": "uniswap v2",
     "routers": [

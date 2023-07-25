@@ -5,6 +5,7 @@ from typing import *
 from consts import *
 from discord.ext.commands import Bot
 from discord import Intents
+from load_env import *
 import asyncio
 import sys
 
@@ -186,7 +187,7 @@ with open(abi, "r") as file:
 
 web3 = Web3(Web3.HTTPProvider(node))
 
-contract = web3.eth.contract(address=Web3.to_checksum_address(sys.argv[2]), abi=abi)
+contract = web3.eth.contract(address=Web3.to_checksum_address(contract_addr), abi=abi)
 account = web3.eth.account.from_key(private_key)
 
 async def flash_arbitrage(ctx, mult: float, dual: bool):
@@ -259,4 +260,4 @@ async def arbitrage2(ctx, mult: int):
 async def arbitrage3(ctx, mult: int):
     await flash_arbitrage(ctx, mult, False)
 
-bot.run(BOT_TOKEN)
+bot.run(token)
