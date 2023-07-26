@@ -25,6 +25,20 @@ def withdraw(web3: Web3, contract, account, token, amount):
 
     return web3.eth.wait_for_transaction_receipt(tx_hash)
 
+def withdrawAll(web3: Web3, contract, account):
+    function = contract.functions.withdrawAll()
+
+    tx = function.build_transaction({
+        "from": account.address,
+        "nonce": web3.eth.get_transaction_count(account.address),
+        "gas": function.estimate_gas({ "from": account.address }),
+        "gasPrice": web3.eth.gas_price
+    })
+    signed_tx = account.sign_transaction(tx)
+    tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+
+    return web3.eth.wait_for_transaction_receipt(tx_hash)
+
 def estimateGasFlTribArbitrage(contract: Contract, pk, router1: str, router2: str, router3: str, token1: str, token2: str, token3: str, amount: int) -> int:
     function = contract.functions.flTribArbitrage(
         Web3.to_checksum_address(router1),

@@ -7,7 +7,14 @@
 - <a href="https://uniswap.org">uniswap v2 | v3 interfaces</a>
 ## Usage
 - `python scripts/publish.py <config.json>` - deploys arbitrage contract and prints it address
-- `python scripts/bot.py <config.json> <your-contract-address>` - runs deployed arbitrage contract
+- `python scripts/bot.py <config.json>` - runs deployed arbitrage contract
+## Setup
+- Clone this repository
+- Open .env file
+- Set to `TOKEN` your discord token and to `CONTRACT` your smart contract address
+- Set to `ALLOWED_ROLE` role id that you wanna to be able to interact with bot, or remove this var completely if wanna everyone to be able to interact with the bot
+- Save .env file open config file
+- Replace `<your-infura-token>` with your infura token and `<your-wallet-sk>`` with your ethereum wallet private address
 ## Example config file
 ```json
 {

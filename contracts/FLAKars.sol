@@ -31,6 +31,8 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
         address router3;
     }
 
+    address[] private tokens;
+
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner of this contract can run this function");
         _;
@@ -124,7 +126,7 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
 
     function convert(address router, address tokenIn, address tokenOut, uint256 amount) external onlyOwner returns (uint256) {
         return _convert(router, tokenIn, tokenOut, amount);
-	}
+	  }
 
     function _convert(address router, address tokenIn, address tokenOut, uint256 amount) internal returns (uint256) {
         if (tokenIn == tokenOut) {
@@ -142,7 +144,7 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
             IQuoter qouter = IQuoter(router);
             return qouter.quoteExactInputSingle(tokenIn, tokenOut, feev3, amount, 0);
         }
-	}
+	  }
 
     function available(address router, address token1, address token2) external view onlyOwner returns (bool) {
         if (isV2(router)) {
@@ -158,10 +160,18 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
         return IERC20(token).balanceOf(address(this));
     }
 
-	function withdraw(address tokenAddress, uint256 amount) external onlyOwner {
-		IERC20 token = IERC20(tokenAddress);
-		token.transfer(owner, amount);
-	}
+    function withdraw(address tokenAddress, uint256 amount) external onlyOwner {
+        IERC20 token = IERC20(tokenAddress);
+        token.transfer(owner, amount);
+    }
+
+    function withdrawAll() external onlyOwner {
+        for (uint256 i = 0; i < tokens.length; i++) {
+            IERC20 token = IERC20(tokens[i]);
+
+            token.transfer(owner, token.balanceOf(address(this)));
+        }
+    }
 
     function flTribArbitrage(address router1, address router2, address router3, address token1, address token2, address token3, uint256 amount) external onlyOwner {
         ArbitrageInfo memory info = ArbitrageInfo({
@@ -201,6 +211,15 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
         );
     }
 
+    function isTokenAdded(address token) internal view returns (bool) {
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (tokens[i] == token) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function executeOperation(
         address token,
         uint256 amount,
@@ -209,6 +228,10 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
         bytes calldata params
     ) external override returns (bool) {
         ArbitrageInfo memory info = abi.decode(params, (ArbitrageInfo));
+
+        if (!isTokenAdded(token)) {
+            tokens.push(token);
+        }
 
         if (info.dual) {
             _dualDexArbitrage(info.router1, info.router2, token, info.token2, amount);
