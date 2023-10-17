@@ -1,1 +1,5 @@
-test.py
+# Configs
+config_*.json
+
+# Builds
+build/
