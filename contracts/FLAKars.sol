@@ -26,13 +26,15 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
     }
 
     error NotProfitableArbitrage(uint256 startBalance, uint256 newBalance);
-    error TooSmallIncome(uint256 income, uint256 minIncome);
+    error OwnerOnlyFunction(address owner, address sender);
     error CallIsNotFromPool(address msgSender);
+    error TooSmallIncome(uint256 income);
 
     address[] private tokens;
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner of this contract can run this function");
+        if (msg.sender != owner)
+          revert OwnerOnlyFunction(owner, msg.sender);
         _;
     }
 
@@ -45,14 +47,15 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
             return;
         }
 
-        IERC20(tokenIn).approve(router, amount);
         if (isV2(router)) {
+            IERC20(tokenIn).approve(router, amount);
             address[] memory path = new address[](2);
             path[0] = tokenIn;
             path[1] = tokenOut;
 
             IUniswapV2Router02(router).swapExactTokensForTokens(amount, 1, path, address(this), block.timestamp + ttl);
         } else {
+            IERC20(tokenIn).approve(router, amount);
             ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
@@ -69,6 +72,14 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
     }
 
     function arbitrage(address router1, address router2, address token1, address token2, uint256 amount) public onlyOwner returns(uint256) {
+        return _arbitrage(router1, router2, token1, token2, amount);
+    }
+    
+    function arbitrageWithMinIncome(address router1, address router2, address token1, address token2, uint256 amount, uint256 minIncome) public onlyOwner returns(uint256) {
+        return _arbitrageWithMinIncome(router1, router2, token1, token2, amount, minIncome);
+    }
+  
+    function _arbitrage(address router1, address router2, address token1, address token2, uint256 amount) private returns(uint256) {
         uint256 startBalance = IERC20(token1).balanceOf(address(this));
         uint256 initalToken2Balance = IERC20(token2).balanceOf(address(this));
 
@@ -82,21 +93,11 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
         return newBalance - startBalance;
     }
 
-    function arbitrageWithMinIncome(address router1, address router2, address token1, address token2, uint256 amount, uint256 minIncome) public onlyOwner returns(uint256) {
-        uint256 startBalance = IERC20(token1).balanceOf(address(this));
-        uint256 initalToken2Balance = IERC20(token2).balanceOf(address(this));
-
-        swap(router1, token1, token2, amount);
-        swap(router2, token2, token1, IERC20(token2).balanceOf(address(this))-initalToken2Balance);
-
-        uint256 newBalance = IERC20(token1).balanceOf(address(this));
-        if (newBalance <= startBalance)
-            revert NotProfitableArbitrage(startBalance, newBalance);
-
-        uint256 income = newBalance - startBalance;
+    function _arbitrageWithMinIncome(address router1, address router2, address token1, address token2, uint256 amount, uint256 minIncome) private returns(uint256) {
+        uint256 income = _arbitrage(router1, router2, token1, token2, amount);
 
         if (income < minIncome)
-            revert TooSmallIncome(income, minIncome);
+            revert TooSmallIncome(income);
 
         return income;
     }
@@ -170,6 +171,10 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
         );
     }
 
+    function decimalsOf(address token) public view returns (uint8) {
+      return IERC20(token).decimals();
+    }
+
     function isTokenAdded(address token) internal view returns (bool) {
         for (uint256 i = 0; i < tokens.length; i++) {
             if (tokens[i] == token)
@@ -194,9 +199,9 @@ contract FLAKars is FlashLoanSimpleReceiverBase {
             tokens.push(token);
 
         if (info.minIncome == 0)
-            arbitrage(info.router1, info.router2, token, info.token2, amount);
+            _arbitrage(info.router1, info.router2, token, info.token2, amount);
         else
-            arbitrageWithMinIncome(info.router1, info.router2, token, info.token2, amount, minIncome);
+            _arbitrageWithMinIncome(info.router1, info.router2, token, info.token2, amount, info.minIncome);
 
         IERC20(token).approve(address(POOL), amount + fee);
 

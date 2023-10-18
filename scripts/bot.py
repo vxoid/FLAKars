@@ -1,4 +1,3 @@
-from contract.contract import Contract
 from config.config import Config
 import sys
 
@@ -14,8 +13,8 @@ def main():
     usage(sys.argv)
     return
   
-  config = Config.from_json_file(sys.argv[1], publish=True)
-  print(f"Deployed to {config.contract.address} ✅")
+  config = Config.from_json_file(sys.argv[1])
+  arbitrages = config.get_available_arbitrages()
 
 if __name__ == "__main__":
   main()
