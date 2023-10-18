@@ -1,23 +1,21 @@
-# FLAKars v0.1.3 | etherium network arbitrage bot
+# FLAKars v0.1.4 | etherium network arbitrage bot
 ## Changelog
-- Config files structure update
-- Arbitrage bug fixes
+- Completely rewrited the bot
 ## Technologies (Libraries)
-- <a href="https://aave.com">flashloans</a>
-- <a href="https://uniswap.org">uniswap v2 | v3 interfaces</a>
+- <a href="https://aave.com">Flashloans</a>
+- <a href="https://uniswap.org">Uniswap V2 | V3 Interfaces</a>
 ## Usage
-- `python scripts/publish.py <config.json>` - deploys arbitrage contract and prints it address
-- `python scripts/bot.py <config.json>` - runs deployed arbitrage contract
+- `python scripts/publish.py <config.json>` - deploys the contract
+- `python scripts/bot.py <config.json>` - runs arbitrage on deployed contract
 ## Setup
 - Clone this repository
-- Open .env file
-- Set to `TOKEN` your discord token and to `CONTRACT` your smart contract address
-- Set to `ALLOWED_ROLE` role id that you wanna to be able to interact with bot, or remove this var completely if wanna everyone to be able to interact with the bot
-- Save .env file open config file
-- Replace `<your-infura-token>` with your infura token and `<your-wallet-sk>`` with your ethereum wallet private address
+- Deploy the contract using `scripts/publish.py` script
+- Create a config file
+- Replace `<your-infura-token>` with your infura token, `<deployed-contract-address>` with deployed contract address and `<your-wallet-sk>` with your ethereum wallet private address
 ## Example config file
 ```json
 {
+    "address": "<deployed-contract-address>",
     "LPA": "0xC911B590248d127aD18546B186cC6B324e99F02c",
     "node": "https://goerli.infura.io/v3/<your-infura-token>",
     "abi": "build/FLAKars.abi",
@@ -27,28 +25,20 @@
     "eth-dex": "uniswap v2",
     "routers": [
         {
-            "dex": "uniswap v3",
-            "address": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
-            "estim": "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6",
-            "avail": "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+            "name": "uniswap v3",
+            "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+            "quoter": "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6",
+            "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984"
         },
-        { "dex": "uniswap v2", "address": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D" },
-        { "dex": "sushiswap", "address": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506" },
-        { "dex": "pancakeswap v2", "address": "0xeff92a263d31888d860bd50809a8d171709b7b1c" },
+        { "name": "uniswap v2", "router": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D" },
+        { "name": "sushiswap", "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506" },
+        { "name": "pancakeswap v2", "router": "0xeff92a263d31888d860bd50809a8d171709b7b1c" },
         {
-            "dex": "pancakeswap v3",
-            "address": "0x1b81D678ffb9C0263b24A97847620C99d213eB14",
-            "estim": "0xbC203d7f83677c7ed3F7acEc959963E7F4ECC5C2",
-            "avail": "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865"
+            "name": "pancakeswap v3",
+            "router": "0x1b81D678ffb9C0263b24A97847620C99d213eB14",
+            "quoter": "0xbC203d7f83677c7ed3F7acEc959963E7F4ECC5C2",
+            "factory": "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865"
         }
-    ],
-    "fl": [
-        "USDC aave",
-        "wETH aave",
-        "wBTC aave",
-        "DAI aave",
-        "USDT aave",
-        "LINK aave"
     ],
     "tokens": [
         { "symbol": "USDC", "address": "0x07865c6e87b9f70255377e024ace6630c1eaa37f" },
@@ -64,6 +54,14 @@
         { "symbol": "DAI aave", "address": "0xBa8DCeD3512925e52FE67b1b5329187589072A55" },
         { "symbol": "USDT aave", "address": "0x2E8D98fd126a32362F2Bd8aA427E59a1ec63F780" },
         { "symbol": "LINK aave", "address": "0xe9c4393a23246293a8D31BF7ab68c17d4CF90A29" }
+    ],
+    "fl": [
+      "USDC aave",
+      "wETH aave",
+      "wBTC aave",
+      "DAI aave",
+      "USDT aave",
+      "LINK aave"
     ]
 }
 ``` 

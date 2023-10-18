@@ -15,8 +15,6 @@ from typing import List
 import colorama
 import json
 
-ARBITRAGE_AMOUNT_IN_ETH = 0.01
-
 @define(kw_only=True)
 class Config:
   node: str = field()
@@ -97,7 +95,7 @@ class Config:
       flash_loan_tokens=flash_loan_tokens
     )
   
-  def get_available_arbitrages(self) -> List[Arbitrage]:
+  def get_available_arbitrages(self, amount_in_eth: float ) -> List[Arbitrage]:
     arbitrages = []
     eth_decimals = self.contract.decimals_of(self.weth)
 
@@ -123,7 +121,7 @@ class Config:
 
             pair_out = Pair(router=router_2, token_in=token_2, token_out=token_1)
             
-            amount = int(ARBITRAGE_AMOUNT_IN_ETH * (10 ** eth_decimals))
+            amount = int(amount_in_eth * (10 ** eth_decimals))
             amount_in_token1 = self.contract.convert(eth_pair, amount)
 
             arbitrage = Arbitrage(eth_pair=eth_pair, pair_in=pair_in, pair_out=pair_out, amount=amount_in_token1)
@@ -134,7 +132,6 @@ class Config:
               print(colorama.Fore.RED + f"Gas fee fetching failed due to: {e}" + colorama.Fore.RESET)
               continue
             
-            print(f"gas fees for {(gas_fees / 10**18)} ETH")
             gas_fees_in_weth = int((gas_fees / 10**18) * 10**eth_decimals)
             gas_fees_in_token1 = self.contract.convert(arbitrage.eth_pair, gas_fees_in_weth)
 
@@ -149,6 +146,35 @@ class Config:
     
     return arbitrages
   
+  def arbitrage_while_profitable(self, arbitrages: List[Arbitrage]):  
+    eth_decimals = self.contract.decimals_of(self.weth)
+
+    while len(arbitrages) > 0:
+      i = 0
+
+      while i < len(arbitrages):
+        arbitrage = arbitrages[i]
+
+        try:
+          gas_fees = self.contract.get_gas_fees_of_flash_loan_arbitrage_with_min_income(arbitrage.pair_in, arbitrage.pair_out, arbitrage.amount, 0)
+        except exceptions.ContractLogicError as e:
+          print(colorama.Fore.RED + f"Gas fee fetching failed due to: {e}" + colorama.Fore.RESET)
+          arbitrages.pop(i)
+          continue
+
+        gas_fees_in_weth = int((gas_fees / 10**18) * 10**eth_decimals)
+        gas_fees_in_token1 = self.contract.convert(arbitrage.eth_pair, gas_fees_in_weth)
+
+        try:
+          self.contract.flash_loan_arbitrage_with_min_income(arbitrage.pair_in, arbitrage.pair_out, arbitrage.amount, gas_fees_in_token1)
+        except exceptions.ContractLogicError as e:
+          print(colorama.Fore.RED + f"Arbitrage failed due to: {e}" + colorama.Fore.RESET)
+          arbitrages.pop(i)
+          continue
+        
+        print(colorama.Fore.GREEN + f"{str(arbitrage)} ✅" + colorama.Fore.RESET)
+        i += 1
+
 def find_from_tokens(name: str, tokens: List[Token]) -> Token:
   tokens_with_target_name = [token for token in tokens if token.name == name]
 

@@ -154,6 +154,3 @@ cython_debug/
 
 # Configs
 config_*.json
-
-# Builds
-build/

@@ -14,7 +14,8 @@ def main():
     return
   
   config = Config.from_json_file(sys.argv[1])
-  arbitrages = config.get_available_arbitrages()
+  arbitrages = config.get_available_arbitrages(0.001)
+  config.arbitrage_while_profitable(arbitrages)
 
 if __name__ == "__main__":
   main()
