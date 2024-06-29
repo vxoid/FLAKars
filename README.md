@@ -6,7 +6,7 @@
 - <a href="https://uniswap.org">Uniswap V2 | V3 Interfaces</a>
 ## Usage
 - `python scripts/publish.py <config.json>` - deploys the contract
-- `python scripts/bot.py <config.json>` - runs arbitrage on deployed contract
+- `python scripts/arbitrage.py <config.json>` - runs arbitrage on deployed contract
 ## Setup
 - Clone this repository
 - Deploy the contract using `scripts/publish.py` script

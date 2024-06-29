@@ -1,5 +1,5 @@
 from attrs import define, field
-from .router import Router
+from .router import Router, UNISWAP_V2
 
 @define(kw_only=True)
 class UniswapRouterV2(Router):
@@ -20,3 +20,6 @@ class UniswapRouterV2(Router):
 
   def get_convert_address(self) -> str:
     return self.address
+  
+  def get_version(self) -> int:
+    return UNISWAP_V2
