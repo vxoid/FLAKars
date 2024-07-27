@@ -18,7 +18,6 @@ class UniswapRouterV3(Router):
     return self.address
   
   def get_available_address(self) -> str:
-    print(f"addr -> {self.factory_address}")
     return self.factory_address
   
   def get_convert_address(self) -> str:

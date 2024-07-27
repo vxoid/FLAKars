@@ -2,6 +2,7 @@ from web3.contract.contract import Contract as Web3Contract
 from eth_account.signers.local import LocalAccount
 from attrs import define, field
 from .router import UNISWAP_V2
+from colorama import Fore
 from typing import Tuple
 from .token import Token
 from .pair import Pair
@@ -118,10 +119,10 @@ class Contract:
       pair.router.get_version()
     )
 
-    available = function.call({ "from": self.owner_wallet.address })
-    
-    if not available:
-      print(f"{str(pair)} is not available")
+    try:
+      available = function.call({ "from": self.owner_wallet.address })
+    except Exception as e:
+      print(Fore.RED + f"couldnt call available : {e}" + Fore.RED)
 
     return available
   
